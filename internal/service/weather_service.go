@@ -5,13 +5,28 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/yourusername/weather-api-redis/internal/config"
 	"github.com/yourusername/weather-api-redis/internal/model"
+	myredis "github.com/yourusername/weather-api-redis/internal/redis"
 )
 
 // FetchWeatherFromProvider fetches weather data from OpenWeatherMap API
 func FetchWeatherFromProvider(location string) (*model.WeatherResponse, error) {
+	ctx := myredis.GetContext()
+	redisClient := myredis.GetClient()
+	cacheKey := "weather:" + location
+
+	// Try to get from cache
+	var cached model.WeatherResponse
+	if val, err := redisClient.Get(ctx, cacheKey).Result(); err == nil {
+		if err := json.Unmarshal([]byte(val), &cached); err == nil {
+			cached.Cached = true
+			return &cached, nil
+		}
+	}
+
 	apiKey := config.GetOpenWeatherMapAPIKey()
 	if apiKey == "" {
 		return nil, fmt.Errorf("OPENWEATHERMAP_API_KEY environment variable not set")
@@ -59,5 +74,11 @@ func FetchWeatherFromProvider(location string) (*model.WeatherResponse, error) {
 	if len(data.Weather) > 0 {
 		weather.Description = data.Weather[0].Description
 	}
+
+	// Cache the result
+	if b, err := json.Marshal(weather); err == nil {
+		_ = redisClient.Set(ctx, cacheKey, b, 10*time.Minute).Err()
+	}
+
 	return weather, nil
 }

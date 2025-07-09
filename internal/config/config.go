@@ -14,3 +14,11 @@ func GetOpenWeatherMapAPIKey() string {
 	}
 	return os.Getenv("OPENWEATHERMAP_API_KEY")
 }
+
+func GetRedisAddr() string {
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
+	return addr
+}
