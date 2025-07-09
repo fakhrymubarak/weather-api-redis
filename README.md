@@ -32,42 +32,14 @@ A simple Weather API service that fetches weather data from external providers a
    # If using Go modules
    go mod tidy
    ```
-3. **Configure environment variables:**
-   - `REDIS_URL`: Redis connection string (e.g., `redis://localhost:6379`)
-   - `WEATHER_API_KEY`: API key for the weather provider
-   - (Optional) Other configuration as needed
-4. **Run Redis:**
-   - Make sure you have a Redis server running locally or use a cloud provider.
-5. **Start the API server:**
+3. **Run the API server:**
    ```sh
    go run main.go
    ```
+   The server will start on port 8080 by default. You can set the `PORT` environment variable to change the port.
+
+> **Note:** Redis caching is not yet implemented. The codebase is structured to allow easy integration of Redis in the future.
 
 ## Usage
 - **Get current weather:**
   ```
-  GET /weather?location=<city>
-  ```
-  **Response:**
-  ```json
-  {
-    "location": "London",
-    "temperature": 15.2,
-    "description": "Partly cloudy",
-    "cached": true
-  }
-  ```
-- (Add more endpoints and examples as you implement them)
-
-## Testing
-- To run tests:
-  ```sh
-  go test ./...
-  ```
-- (Add more details as you add tests)
-
-## Contributing
-Contributions are welcome! Please open issues or submit pull requests for improvements or bug fixes.
-
-## License
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
