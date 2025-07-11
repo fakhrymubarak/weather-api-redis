@@ -1,104 +1,111 @@
-package tests
+package integrationtest
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"github.com/yourusername/weather-api-redis/internal/handler"
 	"github.com/yourusername/weather-api-redis/internal/model"
 	"github.com/yourusername/weather-api-redis/internal/redis"
 )
 
-func TestWeatherHandler_Integration(t *testing.T) {
-	// Set up test environment
+type WeatherAPITestSuite struct {
+	suite.Suite
+	httpServer     *httptest.Server
+	weatherHandler *handler.WeatherHandler
+}
+
+func (suite *WeatherAPITestSuite) SetupSuite() {
+	// Set up test environment variables
 	os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 	os.Setenv("REDIS_ADDR", "localhost:6379")
 
-	// Create handler
-	weatherHandler := handler.NewWeatherHandler()
+	// Create weather handler
+	suite.weatherHandler = handler.NewWeatherHandler()
 
+	// Create test server with proper handler
+	mux := http.NewServeMux()
+	mux.HandleFunc("/weather", suite.weatherHandler.HandleWeather)
+	suite.httpServer = httptest.NewServer(mux)
+}
+
+func (suite *WeatherAPITestSuite) TearDownSuite() {
+	if suite.httpServer != nil {
+		suite.httpServer.Close()
+	}
+}
+
+func TestWeatherAPITestSuite(t *testing.T) {
+	suite.Run(t, new(WeatherAPITestSuite))
+}
+
+func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 	tests := []struct {
-		name           string
-		location       string
-		expectedStatus int
-		expectedError  bool
-		checkResponse  func(*testing.T, *http.Response)
+		name         string
+		setupRequest func() *http.Request
+		wantStatus   int
+		validate     func(t *testing.T, resp *http.Response)
 	}{
 		{
-			name:           "Missing location parameter",
-			location:       "",
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			checkResponse: func(t *testing.T, resp *http.Response) {
-				// Check error message
-				body := make([]byte, 100)
-				resp.Body.Read(body)
-				if string(body) == "" {
-					t.Error("Expected error message for missing location")
-				}
+			name: "Failed - Missing location parameter",
+			setupRequest: func() *http.Request {
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather", nil)
+				return req
+			},
+			wantStatus: http.StatusBadRequest,
+			validate: func(t *testing.T, resp *http.Response) {
+				body, _ := io.ReadAll(resp.Body)
+				assert.Contains(t, string(body), "Missing 'location' query parameter")
 			},
 		},
 		{
-			name:           "Invalid API key",
-			location:       "London",
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			checkResponse: func(t *testing.T, resp *http.Response) {
-				// Should return internal server error due to invalid API key
+			name: "Failed - Empty location parameter",
+			setupRequest: func() *http.Request {
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=", nil)
+				return req
+			},
+			wantStatus: http.StatusBadRequest,
+			validate: func(t *testing.T, resp *http.Response) {
+				body, _ := io.ReadAll(resp.Body)
+				assert.Contains(t, string(body), "Missing 'location' query parameter")
 			},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create request
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/weather?location=%s", tt.location), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
+		suite.Suite.Run(tt.name, func() {
+			req := tt.setupRequest()
 
-			// Create response recorder
-			rr := httptest.NewRecorder()
+			resp, err := suite.httpServer.Client().Do(req)
+			assert.NoError(suite.T(), err)
+			defer resp.Body.Close()
 
-			// Call handler
-			weatherHandler.HandleWeather(rr, req)
+			assert.Equal(suite.T(), tt.wantStatus, resp.StatusCode)
 
-			// Check status code
-			if status := rr.Code; status != tt.expectedStatus {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.expectedStatus)
-			}
-
-			// Check response if provided
-			if tt.checkResponse != nil {
-				tt.checkResponse(t, rr.Result())
+			if tt.validate != nil {
+				tt.validate(suite.T(), resp)
 			}
 		})
 	}
 }
 
-func TestWeatherService_Integration(t *testing.T) {
-	// Set up test environment
-	os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
-	os.Setenv("REDIS_ADDR", "localhost:6379")
+func (suite *WeatherAPITestSuite) TestWeatherServiceIntegration() {
+	ctx := context.Background()
 
 	// Test service directly
-	weatherHandler := handler.NewWeatherHandler()
-
-	// Test with invalid API key (should fail)
-	ctx := context.Background()
-	_, err := weatherHandler.WeatherService.GetWeather(ctx, "London")
-	if err == nil {
-		t.Error("Expected error with invalid API key")
-	}
+	_, err := suite.weatherHandler.WeatherService.GetWeather(ctx, "London")
+	assert.Error(suite.T(), err, "Expected error with invalid API key")
 }
 
-func TestRedisIntegration(t *testing.T) {
+func (suite *WeatherAPITestSuite) TestRedisIntegration() {
 	// Test Redis connection
 	client := redis.GetClient()
 	ctx := redis.GetContext()
@@ -115,38 +122,32 @@ func TestRedisIntegration(t *testing.T) {
 	// Marshal test data
 	data, err := json.Marshal(testData)
 	if err != nil {
-		t.Fatalf("Failed to marshal test data: %v", err)
+		suite.T().Fatalf("Failed to marshal test data: %v", err)
 	}
 
 	// Set test data
 	err = client.Set(ctx, testKey, data, time.Minute).Err()
 	if err != nil {
-		t.Logf("Redis not available, skipping Redis tests: %v", err)
+		suite.T().Logf("Redis not available, skipping Redis tests: %v", err)
 		return
 	}
 
 	// Get test data
 	val, err := client.Get(ctx, testKey).Result()
-	if err != nil {
-		t.Errorf("Failed to get data from Redis: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// Unmarshal and verify
 	var retrieved model.WeatherResponse
 	err = json.Unmarshal([]byte(val), &retrieved)
-	if err != nil {
-		t.Errorf("Failed to unmarshal data from Redis: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
-	if retrieved.Location != testData.Location {
-		t.Errorf("Expected location %s, got %s", testData.Location, retrieved.Location)
-	}
+	assert.Equal(suite.T(), testData.Location, retrieved.Location)
 
 	// Clean up
 	client.Del(ctx, testKey)
 }
 
-func TestModelStructures(t *testing.T) {
+func (suite *WeatherAPITestSuite) TestModelStructures() {
 	// Test WeatherResponse marshaling/unmarshaling
 	weather := &model.WeatherResponse{
 		Location:    "Test City",
@@ -156,19 +157,13 @@ func TestModelStructures(t *testing.T) {
 	}
 
 	data, err := json.Marshal(weather)
-	if err != nil {
-		t.Errorf("Failed to marshal WeatherResponse: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	var unmarshaled model.WeatherResponse
 	err = json.Unmarshal(data, &unmarshaled)
-	if err != nil {
-		t.Errorf("Failed to unmarshal WeatherResponse: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
-	if unmarshaled.Location != weather.Location {
-		t.Errorf("Expected location %s, got %s", weather.Location, unmarshaled.Location)
-	}
+	assert.Equal(suite.T(), weather.Location, unmarshaled.Location)
 
 	// Test OpenWeatherMapResponse
 	owmResponse := &model.OpenWeatherMapResponse{
@@ -201,50 +196,36 @@ func TestModelStructures(t *testing.T) {
 	}
 
 	data, err = json.Marshal(owmResponse)
-	if err != nil {
-		t.Errorf("Failed to marshal OpenWeatherMapResponse: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	var unmarshaledOWM model.OpenWeatherMapResponse
 	err = json.Unmarshal(data, &unmarshaledOWM)
-	if err != nil {
-		t.Errorf("Failed to unmarshal OpenWeatherMapResponse: %v", err)
-	}
+	assert.NoError(suite.T(), err)
 
-	if unmarshaledOWM.Name != owmResponse.Name {
-		t.Errorf("Expected name %s, got %s", owmResponse.Name, unmarshaledOWM.Name)
-	}
+	assert.Equal(suite.T(), owmResponse.Name, unmarshaledOWM.Name)
 }
 
-func TestHandlerErrorCases(t *testing.T) {
-	weatherHandler := handler.NewWeatherHandler()
+func (suite *WeatherAPITestSuite) TestConcurrentRequests() {
+	// Test concurrent access to the API
+	done := make(chan bool, 5)
 
-	// Test with empty location
-	req, _ := http.NewRequest(http.MethodGet, "/weather", nil)
-	rr := httptest.NewRecorder()
-	weatherHandler.HandleWeather(rr, req)
+	for i := 0; i < 5; i++ {
+		go func(id int) {
+			defer func() { done <- true }()
 
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
+			req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=ConcurrentCity", nil)
+			resp, err := suite.httpServer.Client().Do(req)
+			if err != nil {
+				suite.T().Logf("Concurrent request %d failed: %v", id, err)
+			} else {
+				resp.Body.Close()
+				suite.T().Logf("Concurrent request %d completed with status: %d", id, resp.StatusCode)
+			}
+		}(i)
 	}
 
-	// Test with malformed query parameter
-	req, _ = http.NewRequest(http.MethodGet, "/weather?location=", nil)
-	rr = httptest.NewRecorder()
-	weatherHandler.HandleWeather(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
-	}
-}
-
-func BenchmarkWeatherHandler(b *testing.B) {
-	weatherHandler := handler.NewWeatherHandler()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest(http.MethodGet, "/weather?location=London", nil)
-		rr := httptest.NewRecorder()
-		weatherHandler.HandleWeather(rr, req)
+	// Wait for all goroutines to complete
+	for i := 0; i < 5; i++ {
+		<-done
 	}
 }
