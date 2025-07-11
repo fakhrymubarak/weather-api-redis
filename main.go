@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/weather", handler.WeatherHandler)
+	weatherHandler := handler.NewWeatherHandler()
+	http.HandleFunc("/weather", weatherHandler.HandleWeather)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

@@ -32,14 +32,81 @@ A simple Weather API service that fetches weather data from external providers a
    # If using Go modules
    go mod tidy
    ```
-3. **Run the API server:**
+3. **Set up environment variables:**
+   Create a `.env` file in the root directory with your OpenWeatherMap API key:
+   ```
+   OPENWEATHERMAP_API_KEY={YOUR_API_KEY}
+   ```
+   > **Note:** Replace `{YOUR_API_KEY}` with your actual OpenWeatherMap API key. You can get a free API key from [OpenWeatherMap](https://openweathermap.org/api).
+
+4. **Run Redis (required for caching):**
+   ```sh
+   docker run --name weather-redis -p 6379:6379 -d redis
+   ```
+   > **Note:** Redis is required for the caching feature to work. The API will still function without Redis, but caching will be disabled.
+
+5. **Run the API server:**
    ```sh
    go run main.go
    ```
    The server will start on port 8080 by default. You can set the `PORT` environment variable to change the port.
 
-> **Note:** Redis caching is not yet implemented. The codebase is structured to allow easy integration of Redis in the future.
+> **Note:** Redis caching is now implemented. The codebase is structured to allow easy integration of Redis in the future.
 
 ## Usage
-- **Get current weather:**
-  ```
+
+### Get Current Weather
+
+**Endpoint:** `GET /weather`
+
+**Parameters:**
+- `location` (required): City name or location to get weather for
+
+**Example Request:**
+```bash
+curl "http://localhost:8080/weather?location=London"
+```
+
+**Example Response:**
+```json
+{
+  "location": "London",
+  "temperature": 15.2,
+  "description": "clear sky",
+  "cached": false
+}
+```
+
+**Response Fields:**
+- `location`: The city name returned by the weather API
+- `temperature`: Temperature in Celsius
+- `description`: Weather description (e.g., "clear sky", "rain", "clouds")
+- `cached`: Boolean indicating if the response was served from cache (`true`) or fetched fresh from the API (`false`)
+
+**Error Responses:**
+
+Missing location parameter:
+```bash
+curl "http://localhost:8080/weather"
+```
+```json
+Missing "location" query parameter
+```
+
+Invalid location or API error:
+```bash
+curl "http://localhost:8080/weather?location=InvalidCity"
+```
+```json
+Failed to fetch weather data
+```
+
+**Testing Caching:**
+1. First request for a location will return `"cached": false`
+2. Subsequent requests within 10 minutes will return `"cached": true`
+3. After 10 minutes, the cache expires and a fresh API call is made
+
+**Example with Postman:**
+- Method: `GET`
+- URL: `http://localhost:8080/weather?location=Tokyo`
+- Headers: None required
