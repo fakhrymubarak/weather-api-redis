@@ -8,7 +8,6 @@ import (
 	"github.com/yourusername/weather-api-redis/internal/repository"
 )
 
-// Custom error types
 var (
 	ErrWeatherService = errors.New("weather service error")
 )
@@ -27,9 +26,15 @@ type WeatherService struct {
 var _ WeatherServiceInterface = (*WeatherService)(nil)
 
 // NewWeatherService creates a new weather service instance
-func NewWeatherService() WeatherServiceInterface {
+func NewWeatherService(repo ...repository.WeatherRepository) WeatherServiceInterface {
+	var weatherRepo repository.WeatherRepository
+	if len(repo) > 0 && repo[0] != nil {
+		weatherRepo = repo[0]
+	} else {
+		weatherRepo = repository.NewWeatherRepository()
+	}
 	return &WeatherService{
-		WeatherRepo: repository.NewWeatherRepository(),
+		WeatherRepo: weatherRepo,
 	}
 }
 

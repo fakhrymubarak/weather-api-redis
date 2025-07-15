@@ -12,9 +12,15 @@ type WeatherHandler struct {
 	WeatherService service.WeatherServiceInterface
 }
 
-func NewWeatherHandler() *WeatherHandler {
+func NewWeatherHandler(svc ...service.WeatherServiceInterface) *WeatherHandler {
+	var weatherService service.WeatherServiceInterface
+	if len(svc) > 0 && svc[0] != nil {
+		weatherService = svc[0]
+	} else {
+		weatherService = service.NewWeatherService()
+	}
 	return &WeatherHandler{
-		WeatherService: service.NewWeatherService(),
+		WeatherService: weatherService,
 	}
 }
 
@@ -33,5 +39,9 @@ func (h *WeatherHandler) HandleWeather(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(weather)
+	err = json.NewEncoder(w).Encode(weather)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusBadRequest)
+		return
+	}
 }

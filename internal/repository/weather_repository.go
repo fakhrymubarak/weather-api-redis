@@ -29,12 +29,18 @@ type WeatherRepository interface {
 // weatherRepository implements WeatherRepository
 type weatherRepository struct {
 	redisClient *redisv9.Client
+	httpClient  *http.Client
 }
 
 // NewWeatherRepository creates a new weather repository instance
-func NewWeatherRepository() WeatherRepository {
+func NewWeatherRepository(httpClient ...*http.Client) WeatherRepository {
+	client := http.DefaultClient
+	if len(httpClient) > 0 && httpClient[0] != nil {
+		client = httpClient[0]
+	}
 	return &weatherRepository{
 		redisClient: redis.GetClient(),
+		httpClient:  client,
 	}
 }
 
@@ -83,7 +89,7 @@ func (r *weatherRepository) fetchFromExternalAPI(location string) (*model.Weathe
 	}
 
 	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", location, apiKey)
-	resp, err := http.Get(url)
+	resp, err := r.httpClient.Get(url)
 	if err != nil {
 		return nil, ErrExternalAPI
 	}
