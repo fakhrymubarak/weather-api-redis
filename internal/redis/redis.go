@@ -25,3 +25,9 @@ func GetClient() *redisv9.Client {
 func GetContext() context.Context {
 	return context.Background()
 }
+
+// ResetClientForTest resets the Redis client singleton. Use only in tests.
+func ResetClientForTest() {
+	once = sync.Once{}
+	client = nil
+}

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"time"
 
+	"github.com/yourusername/weather-api-redis/internal/config"
 	"github.com/yourusername/weather-api-redis/internal/handler"
 	"github.com/yourusername/weather-api-redis/internal/repository"
 	"github.com/yourusername/weather-api-redis/internal/service"
@@ -31,7 +32,7 @@ type MockResponse struct {
 
 func createMockRedisServer() {
 	miniRedisMock = miniredis.NewMiniRedis()
-	err := miniRedisMock.StartAddr(":16379")
+	err := miniRedisMock.StartAddr(config.GetTestRedisMockPort())
 	if err != nil {
 		panic(err)
 	}
@@ -56,12 +57,12 @@ func setupIntegrationTestServer() *httptest.Server {
 	mux.HandleFunc("/weather", handler.NewWeatherHandler(weatherService).HandleWeather)
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              config.GetTestServerPort(),
 		Handler:           mux,
-		ReadHeaderTimeout: 15 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: parseDurationOrDefault(config.GetServerTimeout("read_header_timeout"), 15*time.Second),
+		ReadTimeout:       parseDurationOrDefault(config.GetServerTimeout("read_timeout"), 15*time.Second),
+		WriteTimeout:      parseDurationOrDefault(config.GetServerTimeout("write_timeout"), 10*time.Second),
+		IdleTimeout:       parseDurationOrDefault(config.GetServerTimeout("idle_timeout"), 30*time.Second),
 	}
 
 	// Create a channel to communicate server startup
@@ -77,4 +78,12 @@ func setupIntegrationTestServer() *httptest.Server {
 
 	// Return the test server immediately
 	return httptest.NewServer(mux)
+}
+
+func parseDurationOrDefault(s string, def time.Duration) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return def
+	}
+	return d
 }

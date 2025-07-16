@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/yourusername/weather-api-redis/internal/config"
 	"github.com/yourusername/weather-api-redis/internal/handler"
 	"github.com/yourusername/weather-api-redis/internal/model"
 	"github.com/yourusername/weather-api-redis/internal/redis"
@@ -33,6 +35,9 @@ func (suite *WeatherAPITestSuite) SetupSuite() {
 	}
 	suite.miniRedis = miniRedis
 	os.Setenv("REDIS_ADDR", miniRedis.Addr())
+	viper.Set("redis.addr", miniRedis.Addr())
+	config.ReloadConfigForTest()
+	redis.ResetClientForTest()
 	os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 
 	// Start a mock OpenWeatherMap API server
@@ -59,22 +64,14 @@ func (suite *WeatherAPITestSuite) SetupSuite() {
 		w.Write([]byte(`{"cod": "404", "message": "city not found"}`))
 	}))
 
-	// Custom HTTP client that rewrites requests to the mock server
-	mockClient := &http.Client{
-		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			// Rewrite the request URL to the mock server
-			if req.URL.Host == "api.openweathermap.org" {
-				mockURL := mockOWM.URL + req.URL.Path + "?" + req.URL.RawQuery
-				newReq, _ := http.NewRequest(req.Method, mockURL, req.Body)
-				newReq.Header = req.Header
-				return http.DefaultClient.Do(newReq)
-			}
-			return http.DefaultTransport.RoundTrip(req)
-		}),
-	}
+	// Set the API URL in Viper to the mock server's URL
+	viper.Set("openweathermap.api_url", mockOWM.URL)
+	viper.Set("openweathermap.api_key", "test_api_key")
+	config.ReloadConfigForTest()
 
-	// Inject the mock client into the repository and service
-	weatherRepo := repository.NewWeatherRepository(mockClient)
+	// Remove the custom HTTP client and roundTripperFunc
+	// Inject the default client into the repository
+	weatherRepo := repository.NewWeatherRepository()
 	weatherService := service.NewWeatherService(weatherRepo)
 
 	mux := http.NewServeMux()
@@ -143,7 +140,8 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				client.Del(ctx, "weather:London")
 
 				// Set invalid API key for this test
-				os.Setenv("OPENWEATHERMAP_API_KEY", "invalid_key")
+				viper.Set("openweathermap.api_key", "invalid_key")
+				config.ReloadConfigForTest()
 			},
 			setupRequest: func() *http.Request {
 				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=London", nil)
@@ -152,7 +150,8 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			wantStatus: http.StatusInternalServerError,
 			validate: func(t *testing.T, resp *http.Response) {
 				// Restore valid API key after test
-				os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
+				viper.Set("openweathermap.api_key", "test_api_key")
+				config.ReloadConfigForTest()
 				body, _ := io.ReadAll(resp.Body)
 				assert.Contains(t, string(body), "Failed to fetch weather data")
 			},
@@ -248,11 +247,4 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			}
 		})
 	}
-}
-
-// roundTripperFunc allows us to use a function as an http.RoundTripper
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
 }

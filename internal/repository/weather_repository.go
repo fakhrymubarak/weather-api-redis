@@ -48,14 +48,19 @@ func NewWeatherRepository(httpClient ...*http.Client) WeatherRepository {
 func (r *weatherRepository) GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error) {
 	// Try to get from cache first
 	if cached, err := r.getFromCache(ctx, location); err == nil {
+		fmt.Println("[DEBUG] Cache hit for:", location)
 		return cached, nil
+	} else {
+		fmt.Println("[DEBUG] Cache miss for:", location, "error:", err)
 	}
 
 	// If not in cache, fetch from external API
 	weather, err := r.fetchFromExternalAPI(location)
 	if err != nil {
+		fmt.Println("[DEBUG] External API error for:", location, "error:", err)
 		return nil, err
 	}
+	fmt.Println("[DEBUG] Fetched from API:", location)
 
 	// Cache the result
 	r.cacheWeather(ctx, location, weather)
@@ -69,11 +74,15 @@ func (r *weatherRepository) getFromCache(ctx context.Context, location string) (
 
 	val, err := r.redisClient.Get(ctx, cacheKey).Result()
 	if err != nil {
+		fmt.Println("[DEBUG] Redis get error for:", cacheKey, "error:", err)
 		return nil, err
 	}
 
+	fmt.Println("[DEBUG] Redis get success for:", cacheKey, "value:", val)
+
 	var weather model.WeatherResponse
 	if err := json.Unmarshal([]byte(val), &weather); err != nil {
+		fmt.Println("[DEBUG] Unmarshal error for:", cacheKey, "error:", err)
 		return nil, err
 	}
 
@@ -83,12 +92,14 @@ func (r *weatherRepository) getFromCache(ctx context.Context, location string) (
 
 // fetchFromExternalAPI retrieves weather data from OpenWeatherMap API
 func (r *weatherRepository) fetchFromExternalAPI(location string) (*model.WeatherResponse, error) {
+	fmt.Println("[DEBUG] Fetching from external API for:", location)
 	apiKey := config.GetOpenWeatherMapAPIKey()
 	if apiKey == "" {
 		return nil, ErrAPIKeyMissing
 	}
 
-	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", location, apiKey)
+	apiURL := config.GetOpenWeatherMapAPIURL()
+	url := fmt.Sprintf("%s?q=%s&appid=%s&units=metric", apiURL, location, apiKey)
 	resp, err := r.httpClient.Get(url)
 	if err != nil {
 		return nil, ErrExternalAPI
@@ -126,6 +137,10 @@ func (r *weatherRepository) cacheWeather(ctx context.Context, location string, w
 	cacheKey := "weather:" + location
 
 	if b, err := json.Marshal(weather); err == nil {
-		_ = r.redisClient.Set(ctx, cacheKey, b, 10*time.Minute).Err()
+		dur, err := time.ParseDuration(config.GetCacheExpiration())
+		if err != nil {
+			dur = 10 * time.Minute // fallback
+		}
+		_ = r.redisClient.Set(ctx, cacheKey, b, dur).Err()
 	}
 }

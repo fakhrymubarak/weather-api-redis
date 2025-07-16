@@ -3,22 +3,90 @@ package config
 import (
 	"log"
 	"os"
+	"path/filepath"
+	"sync"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
-func GetOpenWeatherMapAPIKey() string {
-	err := godotenv.Load()
+var once sync.Once
+
+func initConfig() {
+	once.Do(func() {
+		root, err := getProjectRoot()
+		if err != nil {
+			log.Fatalf("Error finding project root: %v", err)
+		}
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(root)
+		err = viper.ReadInConfig()
+		if err != nil {
+			log.Fatalf("Error reading config file: %v", err)
+		}
+	})
+}
+
+func getProjectRoot() (string, error) {
+	dir, err := os.Getwd()
 	if err != nil {
-		log.Println("No .env file found or failed to load .env")
+		return "", err
 	}
-	return os.Getenv("OPENWEATHERMAP_API_KEY")
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", os.ErrNotExist
+}
+
+func GetOpenWeatherMapAPIKey() string {
+	initConfig()
+	return viper.GetString("openweathermap.api_key")
+}
+
+func GetOpenWeatherMapAPIURL() string {
+	initConfig()
+	return viper.GetString("openweathermap.api_url")
 }
 
 func GetRedisAddr() string {
-	addr := os.Getenv("REDIS_ADDR")
-	if addr == "" {
-		addr = "localhost:6379"
-	}
-	return addr
+	initConfig()
+	return viper.GetString("redis.addr")
+}
+
+func GetServerPort() string {
+	initConfig()
+	return viper.GetString("server.port")
+}
+
+func GetCacheExpiration() string {
+	initConfig()
+	return viper.GetString("cache.expiration")
+}
+
+func GetServerTimeout(key string) string {
+	initConfig()
+	return viper.GetString("server." + key)
+}
+
+func GetTestRedisMockPort() string {
+	initConfig()
+	return viper.GetString("test.redis_mock_port")
+}
+
+func GetTestServerPort() string {
+	initConfig()
+	return viper.GetString("test.server_port")
+}
+
+// ReloadConfigForTest resets the config singleton and reloads Viper config. Use only in tests.
+func ReloadConfigForTest() {
+	once = sync.Once{}
+	initConfig()
 }

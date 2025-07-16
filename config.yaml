@@ -1,0 +1,20 @@
+openweathermap:
+  api_key: "YOUR_API_KEY"
+  api_url: "https://api.openweathermap.org/data/2.5/weather"
+
+redis:
+  addr: "localhost:6379"
+
+server:
+  port: "8080"
+  read_header_timeout: 15s
+  read_timeout: 15s
+  write_timeout: 10s
+  idle_timeout: 30s
+
+cache:
+  expiration: 10m
+
+test:
+  redis_mock_port: ":16379"
+  server_port: ":8080" 
