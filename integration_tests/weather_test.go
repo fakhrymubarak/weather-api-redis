@@ -2,7 +2,6 @@ package integrationtest
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -87,8 +86,11 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusBadRequest,
 			validate: func(t *testing.T, resp *http.Response) {
-				body, _ := io.ReadAll(resp.Body)
-				assert.Contains(t, string(body), "Missing 'location' query parameter")
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Error)
+				assert.Contains(t, *response.Error, "Missing 'location' query parameter")
 			},
 		},
 		{
@@ -102,8 +104,11 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusBadRequest,
 			validate: func(t *testing.T, resp *http.Response) {
-				body, _ := io.ReadAll(resp.Body)
-				assert.Contains(t, string(body), "Missing 'location' query parameter")
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Error)
+				assert.Contains(t, *response.Error, "Missing 'location' query parameter")
 			},
 		},
 		{
@@ -127,8 +132,11 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				// Restore a valid API key after a test
 				os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 				config.ReloadConfigForTest()
-				body, _ := io.ReadAll(resp.Body)
-				assert.Contains(t, string(body), "Failed to fetch weather data")
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Error)
+				assert.Contains(t, *response.Error, "Failed to fetch weather data")
 			},
 		},
 		{
@@ -145,8 +153,11 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusInternalServerError,
 			validate: func(t *testing.T, resp *http.Response) {
-				body, _ := io.ReadAll(resp.Body)
-				assert.Contains(t, string(body), "Failed to fetch weather data")
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Error)
+				assert.Contains(t, *response.Error, "Failed to fetch weather data")
 			},
 		},
 		{
@@ -175,11 +186,19 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusOK,
 			validate: func(t *testing.T, resp *http.Response) {
-				var weather model.WeatherResponse
-				err := json.NewDecoder(resp.Body).Decode(&weather)
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
 				assert.NoError(t, err)
-				assert.Equal(t, "London", weather.Location)
-				assert.True(t, weather.Cached)
+				assert.Equal(t, "Success", response.Message)
+				assert.NotNil(t, response.Data)
+
+				var weatherData model.WeatherResponse
+				dataBytes, _ := json.Marshal(response.Data)
+				err = json.Unmarshal(dataBytes, &weatherData)
+				assert.NoError(t, err)
+
+				assert.Equal(t, "London", weatherData.Location)
+				assert.True(t, weatherData.Cached)
 			},
 		},
 		{
@@ -196,11 +215,19 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusOK,
 			validate: func(t *testing.T, resp *http.Response) {
-				var weather model.WeatherResponse
-				err := json.NewDecoder(resp.Body).Decode(&weather)
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
 				assert.NoError(t, err)
-				assert.Equal(t, "London", weather.Location)
-				assert.False(t, weather.Cached)
+				assert.Equal(t, "Success", response.Message)
+				assert.NotNil(t, response.Data)
+
+				var weatherData model.WeatherResponse
+				dataBytes, _ := json.Marshal(response.Data)
+				err = json.Unmarshal(dataBytes, &weatherData)
+				assert.NoError(t, err)
+
+				assert.Equal(t, "London", weatherData.Location)
+				assert.False(t, weatherData.Cached)
 			},
 		},
 	}

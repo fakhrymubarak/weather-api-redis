@@ -45,7 +45,7 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 		shouldError    bool
 		mockData       *model.WeatherResponse
 		expectedStatus int
-		expectedBody   string
+		expectedBody   string // This is for the error message
 	}{
 		{
 			name:           "Missing location parameter",
@@ -105,28 +105,47 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.expectedStatus)
 			}
 
-			if tt.expectedBody != "" {
-				body := rr.Body.String()
-				if body == "" {
-					t.Errorf("Expected error body but got empty response")
+			if tt.expectedStatus != http.StatusOK {
+				var response model.Response
+				err := json.NewDecoder(rr.Body).Decode(&response)
+				if err != nil {
+					t.Fatalf("Failed to decode JSON error response: %v", err)
 				}
-				if body != tt.expectedBody {
-					t.Logf("Got error body: %s", body)
+				if response.Error == nil {
+					t.Fatal("Expected an error message, but got nil")
+				}
+				if *response.Error != tt.expectedBody {
+					t.Errorf("handler returned wrong error message: got %q want %q", *response.Error, tt.expectedBody)
 				}
 			}
 
 			if tt.expectedStatus == http.StatusOK && tt.mockData != nil {
-				var response model.WeatherResponse
+				var response model.Response
 				err := json.NewDecoder(rr.Body).Decode(&response)
 				if err != nil {
 					t.Errorf("Failed to decode JSON response: %v", err)
 				}
 
-				if response.Location != tt.mockData.Location {
-					t.Errorf("Expected location %s, got %s", tt.mockData.Location, response.Location)
+				if response.Message != "Success" {
+					t.Errorf("Expected message 'Success', got '%s'", response.Message)
 				}
-				if response.Temperature != tt.mockData.Temperature {
-					t.Errorf("Expected temperature %f, got %f", tt.mockData.Temperature, response.Temperature)
+
+				if response.Data == nil {
+					t.Fatal("response data is nil")
+				}
+
+				var weatherData model.WeatherResponse
+				dataBytes, _ := json.Marshal(response.Data)
+				err = json.Unmarshal(dataBytes, &weatherData)
+				if err != nil {
+					t.Fatalf("Could not convert response data to WeatherResponse: %v", err)
+				}
+
+				if weatherData.Location != tt.mockData.Location {
+					t.Errorf("Expected location %s, got %s", tt.mockData.Location, weatherData.Location)
+				}
+				if weatherData.Temperature != tt.mockData.Temperature {
+					t.Errorf("Expected temperature %f, got %f", tt.mockData.Temperature, weatherData.Temperature)
 				}
 			}
 		})
@@ -134,7 +153,17 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 }
 
 func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
-	handler := NewWeatherHandler()
+	handler := &WeatherHandler{
+		WeatherService: &mockWeatherService{
+			shouldError: false,
+			mockData: &model.WeatherResponse{
+				Location:    "London",
+				Temperature: 15.2,
+				Description: "clear sky",
+				Cached:      false,
+			},
+		},
+	}
 
 	// Test with no query parameters
 	req, _ := http.NewRequest("GET", "/weather", nil)
@@ -157,18 +186,44 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 	rr = httptest.NewRecorder()
 	handler.HandleWeather(rr, req)
 
-	if status := rr.Code; status == http.StatusOK {
-		t.Log("Multiple location parameters handled correctly")
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
 	}
 }
 
 func TestWeatherHandler_HandleWeather_NonGETMethod(t *testing.T) {
-	handler := NewWeatherHandler()
+	handler := &WeatherHandler{
+		WeatherService: &mockWeatherService{
+			shouldError: false,
+			mockData: &model.WeatherResponse{
+				Location:    "London",
+				Temperature: 15.2,
+				Description: "clear sky",
+				Cached:      false,
+			},
+		},
+	}
 	req, _ := http.NewRequest(http.MethodPost, "/weather?location=London", nil)
 	rr := httptest.NewRecorder()
 	handler.HandleWeather(rr, req)
-	if rr.Code != http.StatusOK && rr.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status 200 or 500, got %d", rr.Code)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", rr.Code)
+	}
+
+	allow := rr.Header().Get("Allow")
+	if allow != http.MethodGet {
+		t.Errorf("Expected Allow header to be 'GET', got '%s'", allow)
+	}
+
+	var response model.Response
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	if err != nil {
+		t.Fatalf("Failed to decode JSON error response: %v", err)
+	}
+	if response.Error == nil || *response.Error != "Method not allowed" {
+		t.Errorf("Expected error message 'Method not allowed', got '%v'", response.Error)
 	}
 }
 
