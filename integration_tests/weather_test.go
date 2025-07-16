@@ -38,6 +38,7 @@ func (suite *WeatherAPITestSuite) SetupSuite() {
 	viper.Set("redis.addr", miniRedis.Addr())
 	config.ReloadConfigForTest()
 	redis.ResetClientForTest()
+	// In SetupSuite, set the environment variable for the API key
 	os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 
 	// Start a mock OpenWeatherMap API server
@@ -140,7 +141,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				client.Del(ctx, "weather:London")
 
 				// Set invalid API key for this test
-				viper.Set("openweathermap.api_key", "invalid_key")
+				os.Setenv("OPENWEATHERMAP_API_KEY", "invalid_key")
 				config.ReloadConfigForTest()
 			},
 			setupRequest: func() *http.Request {
@@ -150,7 +151,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			wantStatus: http.StatusInternalServerError,
 			validate: func(t *testing.T, resp *http.Response) {
 				// Restore valid API key after test
-				viper.Set("openweathermap.api_key", "test_api_key")
+				os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 				config.ReloadConfigForTest()
 				body, _ := io.ReadAll(resp.Body)
 				assert.Contains(t, string(body), "Failed to fetch weather data")

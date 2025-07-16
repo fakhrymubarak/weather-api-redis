@@ -1,5 +1,4 @@
 openweathermap:
-  api_key: "YOUR_API_KEY"
   api_url: "https://api.openweathermap.org/data/2.5/weather"
 
 redis:

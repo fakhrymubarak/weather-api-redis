@@ -98,7 +98,7 @@ func (r *weatherRepository) fetchFromExternalAPI(location string) (*model.Weathe
 		return nil, ErrAPIKeyMissing
 	}
 
-	apiURL := config.GetOpenWeatherMapAPIURL()
+	apiURL := config.GetOpenWeatherApiUrl()
 	url := fmt.Sprintf("%s?q=%s&appid=%s&units=metric", apiURL, location, apiKey)
 	resp, err := r.httpClient.Get(url)
 	if err != nil {

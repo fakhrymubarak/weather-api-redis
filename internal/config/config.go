@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -45,14 +46,14 @@ func getProjectRoot() (string, error) {
 	return "", os.ErrNotExist
 }
 
-func GetOpenWeatherMapAPIKey() string {
-	initConfig()
-	return viper.GetString("openweathermap.api_key")
-}
-
-func GetOpenWeatherMapAPIURL() string {
+func GetOpenWeatherApiUrl() string {
 	initConfig()
 	return viper.GetString("openweathermap.api_url")
+}
+
+func GetOpenWeatherMapAPIKey() string {
+	_ = godotenv.Load()
+	return os.Getenv("OPENWEATHERMAP_API_KEY")
 }
 
 func GetRedisAddr() string {

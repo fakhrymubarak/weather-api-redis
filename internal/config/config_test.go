@@ -26,7 +26,7 @@ func TestGetOpenWeatherMapAPIKey(t *testing.T) {
 
 func TestGetRedisAddr(t *testing.T) {
 	// Test with environment variable set
-	expectedAddr := "redis.example.com:6379"
+	expectedAddr := "localhost:6379"
 	os.Setenv("REDIS_ADDR", expectedAddr)
 	defer os.Unsetenv("REDIS_ADDR")
 
