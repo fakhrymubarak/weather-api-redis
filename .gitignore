@@ -8,4 +8,5 @@
 .env.development
 .env.test
 .env.production
-coverage.out
+**coverage**
+report.xml
