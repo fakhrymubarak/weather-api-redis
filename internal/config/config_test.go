@@ -6,7 +6,7 @@ import (
 )
 
 func TestGetOpenWeatherMapAPIKey(t *testing.T) {
-	// Test with environment variable set
+	// Test with the environment variable set
 	expectedKey := "test_api_key_123"
 	os.Setenv("OPENWEATHERMAP_API_KEY", expectedKey)
 	defer os.Unsetenv("OPENWEATHERMAP_API_KEY")
@@ -25,7 +25,7 @@ func TestGetOpenWeatherMapAPIKey(t *testing.T) {
 }
 
 func TestGetRedisAddr(t *testing.T) {
-	// Test with environment variable set
+	// Test with the environment variable set
 	expectedAddr := "localhost:6379"
 	os.Setenv("REDIS_ADDR", expectedAddr)
 	defer os.Unsetenv("REDIS_ADDR")

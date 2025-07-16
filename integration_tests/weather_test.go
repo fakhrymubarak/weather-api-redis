@@ -28,43 +28,17 @@ type WeatherAPITestSuite struct {
 }
 
 func (suite *WeatherAPITestSuite) SetupSuite() {
-	// Start miniredis and set REDIS_ADDR
-	miniRedis, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	suite.miniRedis = miniRedis
-	os.Setenv("REDIS_ADDR", miniRedis.Addr())
-	viper.Set("redis.addr", miniRedis.Addr())
+	createMockRedisServer()
+	suite.miniRedis = miniRedisMock
+	viper.Set("redis.addr", miniRedisMock.Addr())
+
 	config.ReloadConfigForTest()
 	redis.ResetClientForTest()
 	// In SetupSuite, set the environment variable for the API key
 	os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 
 	// Start a mock OpenWeatherMap API server
-	mockOWM := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("q")
-		apiKey := r.URL.Query().Get("appid")
-		if apiKey != "test_api_key" {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"cod":401,"message":"Invalid API key"}`))
-			return
-		}
-		if q == "London" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			data, err := os.ReadFile("integration_tests/openweathermap_mock_london.json")
-			if err != nil {
-				w.Write([]byte(`{"name": "London", "main": {"temp": 15.2}, "weather": [{"description": "clear sky"}]}`))
-				return
-			}
-			w.Write(data)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"cod": "404", "message": "city not found"}`))
-	}))
-
+	mockOWM := mockOWMApi()
 	// Set the API URL in Viper to the mock server's URL
 	viper.Set("openweathermap.api_url", mockOWM.URL)
 	viper.Set("openweathermap.api_key", "test_api_key")
@@ -78,7 +52,7 @@ func (suite *WeatherAPITestSuite) SetupSuite() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/weather", handler.NewWeatherHandler(weatherService).HandleWeather)
 
-	suite.httpServer = httptest.NewServer(mux)
+	suite.httpServer = runTestServer()
 }
 
 func (suite *WeatherAPITestSuite) TearDownSuite() {
@@ -140,7 +114,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				ctx := redis.GetContext()
 				client.Del(ctx, "weather:London")
 
-				// Set invalid API key for this test
+				// Set an invalid API key for this test
 				os.Setenv("OPENWEATHERMAP_API_KEY", "invalid_key")
 				config.ReloadConfigForTest()
 			},
@@ -150,7 +124,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			},
 			wantStatus: http.StatusInternalServerError,
 			validate: func(t *testing.T, resp *http.Response) {
-				// Restore valid API key after test
+				// Restore a valid API key after a test
 				os.Setenv("OPENWEATHERMAP_API_KEY", "test_api_key")
 				config.ReloadConfigForTest()
 				body, _ := io.ReadAll(resp.Body)
@@ -211,7 +185,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 		{
 			name: "Success - Valid location (not-cached)",
 			setupMockTest: func() {
-				// Clear cache before running not-cached test
+				// Clear cache before running a not-cached test
 				client := redis.GetClient()
 				ctx := redis.GetContext()
 				client.Del(ctx, "weather:London")
@@ -248,4 +222,30 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 			}
 		})
 	}
+}
+
+func mockOWMApi() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+		apiKey := r.URL.Query().Get("appid")
+		if apiKey != "test_api_key" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"cod":401,"message":"Invalid API key"}`))
+			return
+		}
+		if q == "London" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			data, err := os.ReadFile("integration_tests/openweathermap_mock_london.json")
+			if err != nil {
+				_, _ = w.Write([]byte(`{"name": "London", "main": {"temp": 15.2}, "weather": [{"description": "clear sky"}]}`))
+				return
+			}
+			_, _ = w.Write(data)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"cod": "404", "message": "city not found"}`))
+	}))
+
 }
