@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 )
@@ -16,39 +15,24 @@ func TestMainFunction(t *testing.T) {
 }
 
 func TestServerStartup(t *testing.T) {
-	// Test server startup with a custom port
-	port := config.GetServerPort()
-
 	// Create a test server
-	server := &http.Server{
-		Addr: ":" + port,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}),
-	}
-
-	// Start a server in a goroutine
-	go func() {
-		_ = server.ListenAndServe()
-	}()
-
-	// Wait a bit for the server to start
-	time.Sleep(100 * time.Millisecond)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
 	// Test that the server is responding
-	resp, err := http.Get("http://localhost:" + port)
+	resp, err := http.Get(server.URL)
 	if err != nil {
-		t.Logf("Server test skipped - could not connect: %v", err)
-		return
+		t.Fatalf("could not send GET request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
-
-	// Shutdown server
-	server.Close()
 }
 
 func TestEnvironmentVariables(t *testing.T) {

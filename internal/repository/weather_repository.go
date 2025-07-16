@@ -21,6 +21,14 @@ var (
 	ErrExternalAPI      = errors.New("external API error")
 )
 
+type LocationNotFoundError struct {
+	Message string
+}
+
+func (e *LocationNotFoundError) Error() string {
+	return e.Message
+}
+
 // WeatherRepository defines the interface for weather data access
 type WeatherRepository interface {
 	GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error)
@@ -113,7 +121,15 @@ func (r *weatherRepository) fetchFromExternalAPI(location string) (*model.Weathe
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, ErrLocationNotFound
+			// Try to parse the error message from the downstream response
+			var errResp struct {
+				Cod     string `json:"cod"`
+				Message string `json:"message"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil && errResp.Message != "" {
+				return nil, &LocationNotFoundError{Message: errResp.Message}
+			}
+			return nil, &LocationNotFoundError{Message: "city not found"}
 		}
 		return nil, ErrExternalAPI
 	}

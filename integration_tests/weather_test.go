@@ -151,13 +151,33 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=InvalidCity12345", nil)
 				return req
 			},
-			wantStatus: http.StatusInternalServerError,
+			wantStatus: http.StatusNotFound,
 			validate: func(t *testing.T, resp *http.Response) {
 				var response model.Response
 				err := json.NewDecoder(resp.Body).Decode(&response)
 				assert.NoError(t, err)
 				assert.NotNil(t, response.Error)
-				assert.Contains(t, *response.Error, "Failed to fetch weather data")
+				assert.Equal(t, "city not found", *response.Error)
+			},
+		},
+		{
+			name: "Failed - City not found (short/ambiguous)",
+			setupMockTest: func() {
+				client := redis.GetClient()
+				ctx := redis.GetContext()
+				client.Del(ctx, "weather:ja")
+			},
+			setupRequest: func() *http.Request {
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=ja", nil)
+				return req
+			},
+			wantStatus: http.StatusNotFound,
+			validate: func(t *testing.T, resp *http.Response) {
+				var response model.Response
+				err := json.NewDecoder(resp.Body).Decode(&response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Error)
+				assert.Equal(t, "city not found", *response.Error)
 			},
 		},
 		{

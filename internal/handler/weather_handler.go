@@ -58,6 +58,15 @@ func (h *WeatherHandler) HandleWeather(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	weather, err := h.WeatherService.GetWeather(ctx, location)
 	if err != nil {
+		// Check for downstream city not found error
+		if err.Error() == "city not found" || err.Error() == "location not found" {
+			errMsg := err.Error()
+			h.writeJSONResponse(w, http.StatusNotFound, model.Response{
+				Error:   &errMsg,
+				Message: "Error",
+			})
+			return
+		}
 		errMsg := "Failed to fetch weather data"
 		h.writeJSONResponse(w, http.StatusInternalServerError, model.Response{
 			Error:   &errMsg,

@@ -36,14 +36,8 @@ func (m *mockRedisClient) Close() error { return nil }
 // Mock HTTP client
 func newMockHTTPClient(fn func(req *http.Request) *http.Response) *http.Client {
 	return &http.Client{
-		Transport: roundTripperFunc(fn),
+		Transport: RoundTripperFunc(fn),
 	}
-}
-
-type roundTripperFunc func(req *http.Request) *http.Response
-
-func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req), nil
 }
 
 func TestGetWeather_CacheHit(t *testing.T) {
