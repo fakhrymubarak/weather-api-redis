@@ -99,3 +99,35 @@ func TestNewWeatherService(t *testing.T) {
 		t.Log("Service is functional")
 	}
 }
+
+func TestNewWeatherService_NilRepo(t *testing.T) {
+	service := NewWeatherService(nil)
+	if service == nil {
+		t.Error("Expected service to be created with nil repo")
+	}
+}
+
+func TestWeatherService_GetWeather_EmptyLocation(t *testing.T) {
+	mockRepo := &mockWeatherRepository{shouldError: false, mockData: &model.WeatherResponse{Location: "", Temperature: 0, Description: "", Cached: false}}
+	service := &WeatherService{WeatherRepo: mockRepo}
+	ctx := context.Background()
+	result, err := service.GetWeather(ctx, "")
+	if err != nil {
+		t.Errorf("Expected no error for empty location, got: %v", err)
+	}
+	if result == nil {
+		t.Error("Expected result for empty location, got nil")
+	}
+}
+
+func TestWeatherService_GetWeather_NilContext(t *testing.T) {
+	mockRepo := &mockWeatherRepository{shouldError: false, mockData: &model.WeatherResponse{Location: "London", Temperature: 15.2, Description: "clear sky", Cached: false}}
+	service := &WeatherService{WeatherRepo: mockRepo}
+	result, err := service.GetWeather(nil, "London")
+	if err != nil {
+		t.Errorf("Expected no error for nil context, got: %v", err)
+	}
+	if result == nil {
+		t.Error("Expected result for nil context, got nil")
+	}
+}

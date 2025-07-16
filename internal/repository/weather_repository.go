@@ -26,9 +26,15 @@ type WeatherRepository interface {
 	GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error)
 }
 
+// RedisClient defines a minimal interface for Redis operations
+type RedisClient interface {
+	Get(ctx context.Context, key string) *redisv9.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redisv9.StatusCmd
+}
+
 // weatherRepository implements WeatherRepository
 type weatherRepository struct {
-	redisClient *redisv9.Client
+	redisClient RedisClient
 	httpClient  *http.Client
 }
 

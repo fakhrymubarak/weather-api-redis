@@ -168,6 +168,18 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestWeatherHandler_HandleWeather_NonGETMethod(t *testing.T) {
+	handler := NewWeatherHandler()
+	// Use POST instead of GET
+	req, _ := http.NewRequest("POST", "/weather?location=London", nil)
+	rr := httptest.NewRecorder()
+	handler.HandleWeather(rr, req)
+	// Should still process, as method is not checked, but good to cover
+	if rr.Code != http.StatusOK && rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 200 or 500, got %d", rr.Code)
+	}
+}
+
 func BenchmarkWeatherHandler_HandleWeather(b *testing.B) {
 	handler := NewWeatherHandler()
 

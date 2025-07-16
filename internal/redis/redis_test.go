@@ -43,6 +43,15 @@ func TestRedisSingletonPattern(t *testing.T) {
 	}
 }
 
+func TestResetClientForTest(t *testing.T) {
+	client1 := GetClient()
+	ResetClientForTest()
+	client2 := GetClient()
+	if client1 == client2 {
+		t.Error("Expected a new client instance after reset")
+	}
+}
+
 func BenchmarkGetClient(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
