@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
 )
 
 func TestNewWeatherRepository(t *testing.T) {
@@ -20,13 +20,11 @@ func TestWeatherRepository_GetWeather_ErrorCases(t *testing.T) {
 	repo := NewWeatherRepository()
 	ctx := context.Background()
 
-	// Test with empty location
 	_, err := repo.GetWeather(ctx, "")
 	if err == nil {
 		t.Error("Expected error for empty location")
 	}
 
-	// Test with invalid location (should fail due to invalid API key)
 	_, err = repo.GetWeather(ctx, "InvalidCity12345")
 	if err == nil {
 		t.Error("Expected error for invalid location")
@@ -40,7 +38,6 @@ func TestWeatherRepository_CacheOperations(t *testing.T) {
 	// Test caching (this will fail if Redis is not available, but that's expected)
 	location := "TestLocation"
 
-	// Try to get from cache first (should fail)
 	_, err := repo.GetWeather(ctx, location)
 	if err == nil {
 		t.Log("Cache test passed - Redis is available")
@@ -53,20 +50,17 @@ func TestWeatherRepository_ErrorHandling(t *testing.T) {
 	repo := NewWeatherRepository()
 	ctx := context.Background()
 
-	// Test with empty location
 	_, err := repo.GetWeather(ctx, "")
 	if err == nil {
 		t.Error("Expected error for empty location")
 	}
 
-	// Test with very long location name
 	longLocation := "A" + string(make([]byte, 1000)) // Very long string
 	_, err = repo.GetWeather(ctx, longLocation)
 	if err == nil {
 		t.Error("Expected error for very long location")
 	}
 
-	// Test with special characters in location
 	_, err = repo.GetWeather(ctx, "London@#$%")
 	if err == nil {
 		t.Error("Expected error for location with special characters")
@@ -77,7 +71,6 @@ func TestWeatherRepository_APICallSimulation(t *testing.T) {
 	repo := NewWeatherRepository()
 	ctx := context.Background()
 
-	// Test with a location that would cause API call (but will fail due to invalid API key)
 	_, err := repo.GetWeather(ctx, "SimulatedCity")
 	if err == nil {
 		t.Error("Expected error for simulated API call")
@@ -88,7 +81,6 @@ func TestWeatherRepository_ConcurrentAccess(t *testing.T) {
 	repo := NewWeatherRepository()
 	ctx := context.Background()
 
-	// Test concurrent access to the repository
 	done := make(chan bool, 5)
 
 	for i := 0; i < 5; i++ {
@@ -115,19 +107,16 @@ func TestWeatherRepository_EdgeCases(t *testing.T) {
 	repo := NewWeatherRepository()
 	ctx := context.Background()
 
-	// Test with unicode characters
 	_, err := repo.GetWeather(ctx, "北京")
 	if err == nil {
 		t.Error("Expected error for unicode location")
 	}
 
-	// Test with numbers only
 	_, err = repo.GetWeather(ctx, "12345")
 	if err == nil {
 		t.Error("Expected error for numeric location")
 	}
 
-	// Test with spaces only
 	_, err = repo.GetWeather(ctx, "   ")
 	if err == nil {
 		t.Error("Expected error for whitespace-only location")
@@ -278,7 +267,6 @@ func TestWeatherRepository_FetchFromExternalAPIFunction(t *testing.T) {
 	// Test fetchFromExternalAPI function directly
 	location := "TestExternalAPILocation"
 
-	// Try to fetch from external API (this will fail due to invalid API key)
 	if r, ok := repo.(*weatherRepository); ok {
 		_, err := r.fetchFromExternalAPI(location)
 		if err == nil {

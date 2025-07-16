@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 	redisv9 "github.com/redis/go-redis/v9"
-	"github.com/yourusername/weather-api-redis/internal/config"
 )
 
 var (

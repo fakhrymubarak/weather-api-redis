@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/weather-api-redis/internal/config"
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 )
 
 func TestMainFunction(t *testing.T) {
-	// Test that main function can be called without panicking
+	// Test that the main function can be called without panicking
 	// This is a basic test to ensure the application can start
 	t.Log("Main function test passed - application can be initialized")
 }
@@ -27,15 +27,15 @@ func TestServerStartup(t *testing.T) {
 		}),
 	}
 
-	// Start server in a goroutine
+	// Start a server in a goroutine
 	go func() {
-		server.ListenAndServe()
+		_ = server.ListenAndServe()
 	}()
 
-	// Wait a bit for server to start
+	// Wait a bit for the server to start
 	time.Sleep(100 * time.Millisecond)
 
-	// Test that server is responding
+	// Test that the server is responding
 	resp, err := http.Get("http://localhost:" + port)
 	if err != nil {
 		t.Logf("Server test skipped - could not connect: %v", err)

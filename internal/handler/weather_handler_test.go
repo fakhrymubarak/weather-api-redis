@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/yourusername/weather-api-redis/internal/model"
-	"github.com/yourusername/weather-api-redis/internal/service"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 )
 
 // Mock service for testing
@@ -17,7 +17,7 @@ type mockWeatherService struct {
 	mockData    *model.WeatherResponse
 }
 
-func (m *mockWeatherService) GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error) {
+func (m *mockWeatherService) GetWeather(context.Context, string) (*model.WeatherResponse, error) {
 	if m.shouldError {
 		return nil, service.ErrWeatherService
 	}
@@ -31,6 +31,7 @@ func TestNewWeatherHandler(t *testing.T) {
 	handler := NewWeatherHandler()
 	if handler == nil {
 		t.Error("Expected handler to be created")
+		return
 	}
 	if handler.WeatherService == nil {
 		t.Error("Expected weather service to be initialized")
@@ -104,19 +105,16 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.expectedStatus)
 			}
 
-			// Check response body for error cases
 			if tt.expectedBody != "" {
 				body := rr.Body.String()
 				if body == "" {
 					t.Errorf("Expected error body but got empty response")
 				}
-				// Just check that we got some error response, not exact string match
 				if body != tt.expectedBody {
 					t.Logf("Got error body: %s", body)
 				}
 			}
 
-			// Check JSON response for success case
 			if tt.expectedStatus == http.StatusOK && tt.mockData != nil {
 				var response model.WeatherResponse
 				err := json.NewDecoder(rr.Body).Decode(&response)
@@ -147,7 +145,6 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
 	}
 
-	// Test with empty location parameter
 	req, _ = http.NewRequest("GET", "/weather?location=", nil)
 	rr = httptest.NewRecorder()
 	handler.HandleWeather(rr, req)
@@ -156,13 +153,10 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
 	}
 
-	// Test with multiple location parameters (should use first one)
 	req, _ = http.NewRequest("GET", "/weather?location=London&location=Paris", nil)
 	rr = httptest.NewRecorder()
 	handler.HandleWeather(rr, req)
 
-	// This should not return a bad request, but might return an internal server error
-	// due to invalid API key, which is expected
 	if status := rr.Code; status == http.StatusOK {
 		t.Log("Multiple location parameters handled correctly")
 	}
@@ -170,11 +164,9 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 
 func TestWeatherHandler_HandleWeather_NonGETMethod(t *testing.T) {
 	handler := NewWeatherHandler()
-	// Use POST instead of GET
-	req, _ := http.NewRequest("POST", "/weather?location=London", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/weather?location=London", nil)
 	rr := httptest.NewRecorder()
 	handler.HandleWeather(rr, req)
-	// Should still process, as method is not checked, but good to cover
 	if rr.Code != http.StatusOK && rr.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 200 or 500, got %d", rr.Code)
 	}
@@ -185,7 +177,7 @@ func BenchmarkWeatherHandler_HandleWeather(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/weather?location=London", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/weather?location=London", nil)
 		rr := httptest.NewRecorder()
 		handler.HandleWeather(rr, req)
 	}

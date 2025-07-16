@@ -5,15 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
 	redisv9 "github.com/redis/go-redis/v9"
-	"github.com/yourusername/weather-api-redis/internal/model"
 )
 
 type mockRedisClient struct {
@@ -114,7 +114,7 @@ func TestGetWeather_CacheMiss_APISuccess(t *testing.T) {
 	mockHTTP := newMockHTTPClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewReader(b)),
+			Body:       io.NopCloser(bytes.NewReader(b)),
 			Header:     make(http.Header),
 		}
 	})
@@ -149,7 +149,7 @@ func TestGetWeather_CacheMiss_APIError(t *testing.T) {
 	mockHTTP := newMockHTTPClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 500,
-			Body:       ioutil.NopCloser(strings.NewReader("error")),
+			Body:       io.NopCloser(strings.NewReader("error")),
 			Header:     make(http.Header),
 		}
 	})
@@ -178,7 +178,7 @@ func TestGetWeather_CacheMiss_APIDecodeError(t *testing.T) {
 	mockHTTP := newMockHTTPClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader("not-json")),
+			Body:       io.NopCloser(strings.NewReader("not-json")),
 			Header:     make(http.Header),
 		}
 	})
@@ -206,7 +206,7 @@ func TestGetWeather_MissingAPIKey(t *testing.T) {
 	mockHTTP := newMockHTTPClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader("{}")),
+			Body:       io.NopCloser(strings.NewReader("{}")),
 			Header:     make(http.Header),
 		}
 	})

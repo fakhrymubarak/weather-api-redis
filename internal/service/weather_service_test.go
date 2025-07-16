@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/yourusername/weather-api-redis/internal/model"
-	"github.com/yourusername/weather-api-redis/internal/repository"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
 )
 
 // Mock repository for testing
@@ -14,7 +14,7 @@ type mockWeatherRepository struct {
 	mockData    *model.WeatherResponse
 }
 
-func (m *mockWeatherRepository) GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error) {
+func (m *mockWeatherRepository) GetWeather(context.Context, string) (*model.WeatherResponse, error) {
 	if m.shouldError {
 		return nil, repository.ErrLocationNotFound
 	}
@@ -52,18 +52,15 @@ func TestWeatherService_GetWeather(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock repository
 			mockRepo := &mockWeatherRepository{
 				shouldError: tt.shouldError,
 				mockData:    tt.mockData,
 			}
 
-			// Create service with mock repository
 			service := &WeatherService{
 				WeatherRepo: mockRepo,
 			}
 
-			// Test GetWeather
 			ctx := context.Background()
 			result, err := service.GetWeather(ctx, tt.location)
 
@@ -94,7 +91,7 @@ func TestNewWeatherService(t *testing.T) {
 	// Test that the service can be used
 	ctx := context.Background()
 	_, err := service.GetWeather(ctx, "test")
-	// We expect an error due to invalid API key, but the service should be functional
+
 	if err == nil {
 		t.Log("Service is functional")
 	}

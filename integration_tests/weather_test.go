@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
+	"github.com/fakhrymubarak/weather-api-redis/internal/handler"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/redis"
+	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
+	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/yourusername/weather-api-redis/internal/config"
-	"github.com/yourusername/weather-api-redis/internal/handler"
-	"github.com/yourusername/weather-api-redis/internal/model"
-	"github.com/yourusername/weather-api-redis/internal/redis"
-	"github.com/yourusername/weather-api-redis/internal/repository"
-	"github.com/yourusername/weather-api-redis/internal/service"
 )
 
 type WeatherAPITestSuite struct {

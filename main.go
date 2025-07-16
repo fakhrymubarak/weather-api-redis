@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/yourusername/weather-api-redis/internal/config"
-	"github.com/yourusername/weather-api-redis/internal/handler"
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
+	"github.com/fakhrymubarak/weather-api-redis/internal/handler"
 )
 
 func main() {

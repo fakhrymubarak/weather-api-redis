@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/redis"
 	redisv9 "github.com/redis/go-redis/v9"
-	"github.com/yourusername/weather-api-redis/internal/config"
-	"github.com/yourusername/weather-api-redis/internal/model"
-	"github.com/yourusername/weather-api-redis/internal/redis"
 )
 
 // Custom error types
@@ -52,7 +52,6 @@ func NewWeatherRepository(httpClient ...*http.Client) WeatherRepository {
 
 // GetWeather retrieves weather data, checking cache first, then external API
 func (r *weatherRepository) GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error) {
-	// Try to get from cache first
 	if cached, err := r.getFromCache(ctx, location); err == nil {
 		fmt.Println("[DEBUG] Cache hit for:", location)
 		return cached, nil

@@ -16,7 +16,7 @@ func TestGetOpenWeatherMapAPIKey(t *testing.T) {
 		t.Errorf("Expected API key %s, got %s", expectedKey, result)
 	}
 
-	// Test with environment variable not set
+	// Test with an environment variable not set
 	os.Unsetenv("OPENWEATHERMAP_API_KEY")
 	result = GetOpenWeatherMapAPIKey()
 	if result != "" {
@@ -35,7 +35,7 @@ func TestGetRedisAddr(t *testing.T) {
 		t.Errorf("Expected Redis addr %s, got %s", expectedAddr, result)
 	}
 
-	// Test with environment variable not set (should return default)
+	// Test with an environment variable not set (should return default)
 	os.Unsetenv("REDIS_ADDR")
 	result = GetRedisAddr()
 	if result != "localhost:6379" {

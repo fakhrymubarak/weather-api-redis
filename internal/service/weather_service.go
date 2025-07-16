@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/yourusername/weather-api-redis/internal/model"
-	"github.com/yourusername/weather-api-redis/internal/repository"
+	"github.com/fakhrymubarak/weather-api-redis/internal/model"
+	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
 )
 
 var (
@@ -22,7 +22,7 @@ type WeatherService struct {
 	WeatherRepo repository.WeatherRepository
 }
 
-// Ensure WeatherService implements WeatherServiceInterface
+// Ensure the WeatherService implements WeatherServiceInterface
 var _ WeatherServiceInterface = (*WeatherService)(nil)
 
 // NewWeatherService creates a new weather service instance

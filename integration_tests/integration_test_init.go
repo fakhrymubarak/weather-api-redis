@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"time"
 
-	"github.com/yourusername/weather-api-redis/internal/config"
-	"github.com/yourusername/weather-api-redis/internal/handler"
-	"github.com/yourusername/weather-api-redis/internal/repository"
-	"github.com/yourusername/weather-api-redis/internal/service"
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
+	"github.com/fakhrymubarak/weather-api-redis/internal/handler"
+	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
+	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 
 	"github.com/alicebob/miniredis/v2"
 )

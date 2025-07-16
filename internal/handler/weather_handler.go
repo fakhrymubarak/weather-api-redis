@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yourusername/weather-api-redis/internal/service"
+	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 )
 
 type WeatherHandler struct {
