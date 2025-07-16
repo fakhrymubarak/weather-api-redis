@@ -2,7 +2,6 @@ package integrationtest
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -70,7 +69,7 @@ func setupIntegrationTestServer() *httptest.Server {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Starting Lookup Server on %s", "8080")
+		config.GetLogger().Infow("Starting Lookup Server", "port", "8080")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}

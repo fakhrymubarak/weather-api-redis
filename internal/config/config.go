@@ -1,29 +1,31 @@
 package config
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var once sync.Once
+var logger *zap.SugaredLogger
+var loggerOnce sync.Once
 
 func initConfig() {
 	once.Do(func() {
 		root, err := getProjectRoot()
 		if err != nil {
-			log.Fatalf("Error finding project root: %v", err)
+			GetLogger().Fatalw("Erciror finding project root", "error", err)
 		}
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 		viper.AddConfigPath(root)
 		err = viper.ReadInConfig()
 		if err != nil {
-			log.Fatalf("Error reading config file: %v", err)
+			GetLogger().Fatalw("Error reading config file", "error", err)
 		}
 	})
 }
@@ -90,4 +92,15 @@ func GetTestServerPort() string {
 func ReloadConfigForTest() {
 	once = sync.Once{}
 	initConfig()
+}
+
+func GetLogger() *zap.SugaredLogger {
+	loggerOnce.Do(func() {
+		l, err := zap.NewDevelopment()
+		if err != nil {
+			panic(err)
+		}
+		logger = l.Sugar()
+	})
+	return logger
 }

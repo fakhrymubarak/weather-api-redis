@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/fakhrymubarak/weather-api-redis/internal/config"
@@ -16,6 +15,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("Weather API server running on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	config.GetLogger().Infow("Weather API server running", "port", port)
+	config.GetLogger().Fatalw("Server exited", "error", http.ListenAndServe(":"+port, nil))
 }

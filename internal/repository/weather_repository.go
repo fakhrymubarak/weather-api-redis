@@ -53,19 +53,19 @@ func NewWeatherRepository(httpClient ...*http.Client) WeatherRepository {
 // GetWeather retrieves weather data, checking cache first, then external API
 func (r *weatherRepository) GetWeather(ctx context.Context, location string) (*model.WeatherResponse, error) {
 	if cached, err := r.getFromCache(ctx, location); err == nil {
-		fmt.Println("[DEBUG] Cache hit for:", location)
+		config.GetLogger().Debugw("Cache hit", "location", location)
 		return cached, nil
 	} else {
-		fmt.Println("[DEBUG] Cache miss for:", location, "error:", err)
+		config.GetLogger().Debugw("Cache miss", "location", location, "error", err)
 	}
 
 	// If not in cache, fetch from external API
 	weather, err := r.fetchFromExternalAPI(location)
 	if err != nil {
-		fmt.Println("[DEBUG] External API error for:", location, "error:", err)
+		config.GetLogger().Errorw("External API error", "location", location, "error", err)
 		return nil, err
 	}
-	fmt.Println("[DEBUG] Fetched from API:", location)
+	config.GetLogger().Debugw("Fetched from API", "location", location)
 
 	// Cache the result
 	r.cacheWeather(ctx, location, weather)
@@ -79,15 +79,15 @@ func (r *weatherRepository) getFromCache(ctx context.Context, location string) (
 
 	val, err := r.redisClient.Get(ctx, cacheKey).Result()
 	if err != nil {
-		fmt.Println("[DEBUG] Redis get error for:", cacheKey, "error:", err)
+		config.GetLogger().Debugw("Redis get error", "cacheKey", cacheKey, "error", err)
 		return nil, err
 	}
 
-	fmt.Println("[DEBUG] Redis get success for:", cacheKey, "value:", val)
+	config.GetLogger().Debugw("Redis get success", "cacheKey", cacheKey, "value", val)
 
 	var weather model.WeatherResponse
 	if err := json.Unmarshal([]byte(val), &weather); err != nil {
-		fmt.Println("[DEBUG] Unmarshal error for:", cacheKey, "error:", err)
+		config.GetLogger().Errorw("Unmarshal error", "cacheKey", cacheKey, "error", err)
 		return nil, err
 	}
 
@@ -97,7 +97,7 @@ func (r *weatherRepository) getFromCache(ctx context.Context, location string) (
 
 // fetchFromExternalAPI retrieves weather data from OpenWeatherMap API
 func (r *weatherRepository) fetchFromExternalAPI(location string) (*model.WeatherResponse, error) {
-	fmt.Println("[DEBUG] Fetching from external API for:", location)
+	config.GetLogger().Debugw("Fetching from external API", "location", location)
 	apiKey := config.GetOpenWeatherMapAPIKey()
 	if apiKey == "" {
 		return nil, ErrAPIKeyMissing
