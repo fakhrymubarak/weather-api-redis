@@ -13,7 +13,6 @@ A simple Weather API service that fetches weather data from external providers a
 - Cache weather responses in Redis to reduce API calls
 - Configurable cache expiration
 - Simple RESTful API interface
-- (Optional) Support for multiple weather providers
 
 ## Tech Stack
 - Go (Golang)
@@ -67,38 +66,54 @@ A simple Weather API service that fetches weather data from external providers a
 curl "http://localhost:8080/weather?location=London"
 ```
 
-**Example Response:**
+**Example Response (Success):**
 ```json
 {
-  "location": "London",
-  "temperature": 15.2,
-  "description": "clear sky",
-  "cached": false
+  "data": {
+    "location": "London",
+    "temperature": 15.2,
+    "description": "clear sky",
+    "cached": false
+  },
+  "message": "Success"
 }
 ```
 
 **Response Fields:**
-- `location`: The city name returned by the weather API
-- `temperature`: Temperature in Celsius
-- `description`: Weather description (e.g., "clear sky", "rain", "clouds")
-- `cached`: Boolean indicating if the response was served from cache (`true`) or fetched fresh from the API (`false`)
+- `data`: The weather data object (see below)
+  - `location`: The city name returned by the weather API
+  - `temperature`: Temperature in Celsius
+  - `description`: Weather description (e.g., "clear sky", "rain", "clouds")
+  - `cached`: Boolean indicating if the response was served from cache (`true`) or fetched fresh from the API (`false`)
+- `message`: Response status message (e.g., "Success")
+- `error`: Error message (only present if an error occurred)
 
-**Error Responses:**
-
-Missing location parameter:
-```bash
-curl "http://localhost:8080/weather"
-```
+**Example Error Response (Missing location parameter):**
 ```json
-Missing "location" query parameter
+{
+  "error": "Missing 'location' query parameter",
+  "message": "Error"
+}
 ```
 
-Invalid location or API error:
-```bash
-curl "http://localhost:8080/weather?location=InvalidCity"
-```
+**Example Error Response (Invalid location or API error):**
 ```json
-Failed to fetch weather data
+{
+  "error": "Failed to fetch weather data",
+  "message": "Error"
+}
+```
+
+**Example Error Response (Invalid HTTP Method):**
+```
+HTTP/1.1 405 Method Not Allowed
+Allow: GET
+Content-Type: application/json
+
+{
+  "error": "Method not allowed",
+  "message": "Error"
+}
 ```
 
 **Testing Caching:**
