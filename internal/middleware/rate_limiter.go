@@ -42,9 +42,9 @@ var (
 	muParam       sync.Mutex
 )
 
-// getGlobalLimiter returns the rate limiter for the given IP address, creating one if it does not exist.
+// GetGlobalLimiter returns the rate limiter for the given IP address, creating one if it does not exist.
 // The global limiter allows a configurable number of requests per minute with a configurable burst.
-func getGlobalLimiter(ip string) *rate.Limiter {
+func GetGlobalLimiter(ip string) *rate.Limiter {
 	muGlobal.Lock()
 	defer muGlobal.Unlock()
 	v, exists := globalVisitors[ip]
@@ -77,18 +77,40 @@ func getParamLimiter(ip, param string) *rate.Limiter {
 	return v.limiter
 }
 
+// cleanupGlobalVisitorsOnce removes globalVisitors entries that have not been seen for over the configured cleanup timeout.
+func cleanupGlobalVisitorsOnce() {
+	timeout := config.GetRateLimiterCleanupTimeout()
+	muGlobal.Lock()
+	for ip, v := range globalVisitors {
+		if time.Since(v.lastSeen) > timeout {
+			delete(globalVisitors, ip)
+		}
+	}
+	muGlobal.Unlock()
+}
+
+// cleanupParamVisitorsOnce removes paramVisitors entries that have not been seen for over the configured cleanup timeout.
+func cleanupParamVisitorsOnce() {
+	timeout := config.GetRateLimiterCleanupTimeout()
+	muParam.Lock()
+	for ip, paramMap := range paramVisitors {
+		for param, v := range paramMap {
+			if time.Since(v.lastSeen) > timeout {
+				delete(paramMap, param)
+			}
+		}
+		if len(paramMap) == 0 {
+			delete(paramVisitors, ip)
+		}
+	}
+	muParam.Unlock()
+}
+
 // cleanupGlobalVisitors periodically removes globalVisitors entries that have not been seen for over the configured cleanup timeout.
 func cleanupGlobalVisitors() {
 	for {
 		time.Sleep(time.Minute)
-		timeout := config.GetRateLimiterCleanupTimeout()
-		muGlobal.Lock()
-		for ip, v := range globalVisitors {
-			if time.Since(v.lastSeen) > timeout {
-				delete(globalVisitors, ip)
-			}
-		}
-		muGlobal.Unlock()
+		cleanupGlobalVisitorsOnce()
 	}
 }
 
@@ -96,19 +118,7 @@ func cleanupGlobalVisitors() {
 func cleanupParamVisitors() {
 	for {
 		time.Sleep(time.Minute)
-		timeout := config.GetRateLimiterCleanupTimeout()
-		muParam.Lock()
-		for ip, paramMap := range paramVisitors {
-			for param, v := range paramMap {
-				if time.Since(v.lastSeen) > timeout {
-					delete(paramMap, param)
-				}
-			}
-			if len(paramMap) == 0 {
-				delete(paramVisitors, ip)
-			}
-		}
-		muParam.Unlock()
+		cleanupParamVisitorsOnce()
 	}
 }
 
@@ -137,12 +147,11 @@ func getIP(r *http.Request) string {
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
 		ips := strings.Split(xff, ",")
-		return strings.TrimSpace(ips[0])
+		firstIp := strings.TrimSpace(ips[0])
+		ip, _, _ := net.SplitHostPort(firstIp)
+		return ip
 	}
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr // fallback
-	}
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	return ip
 }
 
@@ -161,7 +170,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 			// If param is missing, treat as a single bucket
 			param = "__none__"
 		}
-		globalLimiter := getGlobalLimiter(ip)
+		globalLimiter := GetGlobalLimiter(ip)
 		paramLimiter := getParamLimiter(ip, param)
 		if !globalLimiter.Allow() {
 			w.Header().Set("Content-Type", "application/json")

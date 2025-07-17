@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Note: The burst for both global and per-param is 2, so only 2 requests are allowed instantly.
@@ -34,8 +35,10 @@ func TestRateLimitMiddleware_GlobalBurst(t *testing.T) {
 		}
 		w = httptest.NewRecorder()
 	}
-	// 3rd request (new param) should be blocked by global burst
-	req := httptest.NewRequest("GET", "/weather?location=city2", nil)
+	// Global burst should block the 11th request (new param)
+	req := httptest.NewRequest("GET", "/weather?location=", nil)
+	req.Header.Set("X-Forwarded-For", ip)
+
 	req.RemoteAddr = ip
 	mw.ServeHTTP(w, req)
 	if w.Result().StatusCode != http.StatusTooManyRequests {
@@ -81,4 +84,44 @@ func TestRateLimitMiddleware_PerParamBurst(t *testing.T) {
 	if !strings.Contains(resp["error"].(string), "Rate limit exceeded") {
 		t.Errorf("expected per-param limit error, got %v", resp["error"])
 	}
+}
+
+func TestCleanupGlobalVisitors_RemovesStaleEntries(t *testing.T) {
+	ResetVisitors()
+	ip := "9.8.7.6:9999"
+	limiter := &visitor{
+		limiter:  nil,
+		lastSeen: time.Now().Add(-2 * time.Second), // older than 1s timeout in config_test.yaml
+	}
+	globalVisitors[ip] = limiter
+	cleanupGlobalVisitorsOnce()
+	muGlobal.Lock()
+	_, exists := globalVisitors[ip]
+	muGlobal.Unlock()
+	if exists {
+		t.Errorf("Expected global visitor to be cleaned up, but still exists")
+	}
+}
+
+func TestCleanupParamVisitors_RemovesStaleEntries(t *testing.T) {
+	ResetVisitors()
+	ip := "8.7.6.5:8888"
+	param := "testparam"
+	limiter := &paramVisitor{
+		limiter:  nil,
+		lastSeen: time.Now().Add(-2 * time.Second), // older than 1s timeout in config_test.yaml
+	}
+	paramVisitors[ip] = map[string]*paramVisitor{param: limiter}
+	cleanupParamVisitorsOnce()
+	muParam.Lock()
+	_, exists := paramVisitors[ip]
+	muParam.Unlock()
+	if exists {
+		t.Errorf("Expected param visitor to be cleaned up, but still exists")
+	}
+}
+
+func TestStartRateLimiterCleanup_DoesNotPanic(t *testing.T) {
+	// Just ensure it starts goroutines without panic
+	StartRateLimiterCleanup()
 }

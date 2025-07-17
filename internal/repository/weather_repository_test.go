@@ -369,7 +369,7 @@ func TestWeatherRepository_FetchFromExternalAPIFunction(t *testing.T) {
 // --- 404 City Not Found and API Key Error Tests ---
 
 func TestWeatherRepository_ExternalAPI_404_CityNotFound_WithAPIKey(t *testing.T) {
-	// Set API key so the error is not 'API key missing'
+	// Set the API key so the error is not 'API key missing'
 	oldKey := os.Getenv("OPENWEATHERMAP_API_KEY")
 	os.Setenv("OPENWEATHERMAP_API_KEY", "testkey")
 	defer os.Setenv("OPENWEATHERMAP_API_KEY", oldKey)
@@ -379,6 +379,40 @@ func TestWeatherRepository_ExternalAPI_404_CityNotFound_WithAPIKey(t *testing.T)
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
 				Body:       io.NopCloser(strings.NewReader(`{"cod": "404", "message": "city not found"}`)),
+				Header:     make(http.Header),
+			}
+		}),
+	}
+
+	repo := NewWeatherRepository(mockClient)
+	ctx := context.Background()
+
+	_, err := repo.GetWeather(ctx, "ja")
+	if err == nil {
+		t.Fatal("Expected error for city not found, got nil")
+	}
+
+	var locationNotFoundError *LocationNotFoundError
+	if !errors.As(err, &locationNotFoundError) {
+		t.Errorf("Expected LocationNotFoundError, got %T", err)
+	}
+
+	if err.Error() != "city not found" {
+		t.Errorf("Expected error message 'city not found', got '%s'", err.Error())
+	}
+}
+
+func TestWeatherRepository_ExternalAPI_404_InvalidResp_WithAPIKey(t *testing.T) {
+	// Set the API key so the error is not 'API key missing'
+	oldKey := os.Getenv("OPENWEATHERMAP_API_KEY")
+	os.Setenv("OPENWEATHERMAP_API_KEY", "testkey")
+	defer os.Setenv("OPENWEATHERMAP_API_KEY", oldKey)
+
+	mockClient := &http.Client{
+		Transport: RoundTripperFunc(func(req *http.Request) *http.Response {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader(`{"cod": "404", "message}`)),
 				Header:     make(http.Header),
 			}
 		}),

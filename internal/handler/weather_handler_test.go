@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,15 +12,20 @@ import (
 	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 )
 
+var (
+	errWeatherService   = errors.New("weather service error")
+	errLocationNotFound = errors.New("location not found")
+)
+
 // Mock service for testing
 type mockWeatherService struct {
-	shouldError bool
-	mockData    *model.WeatherResponse
+	error    error
+	mockData *model.WeatherResponse
 }
 
 func (m *mockWeatherService) GetWeather(context.Context, string) (*model.WeatherResponse, error) {
-	if m.shouldError {
-		return nil, service.ErrWeatherService
+	if m.error != nil {
+		return nil, m.error
 	}
 	return m.mockData, nil
 }
@@ -36,13 +42,20 @@ func TestNewWeatherHandler(t *testing.T) {
 	if handler.WeatherService == nil {
 		t.Error("Expected weather service to be initialized")
 	}
+
+	service1 := service.NewWeatherService()
+	service2 := service.NewWeatherService()
+	handler = NewWeatherHandler(service1, service2)
+	if handler.WeatherService == nil {
+		t.Error("Expected service to be created with nil repo")
+	}
 }
 
 func TestWeatherHandler_HandleWeather(t *testing.T) {
 	tests := []struct {
 		name           string
 		location       string
-		shouldError    bool
+		error          error
 		mockData       *model.WeatherResponse
 		expectedStatus int
 		expectedBody   string // This is for the error message
@@ -50,15 +63,15 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 		{
 			name:           "Missing location parameter",
 			location:       "",
-			shouldError:    false,
+			error:          nil,
 			mockData:       nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Missing 'location' query parameter",
 		},
 		{
-			name:        "Successful weather request",
-			location:    "London",
-			shouldError: false,
+			name:     "Successful weather request",
+			location: "London",
+			error:    nil,
 			mockData: &model.WeatherResponse{
 				Location:    "London",
 				Temperature: 15.2,
@@ -71,10 +84,18 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 		{
 			name:           "Service error",
 			location:       "InvalidCity",
-			shouldError:    true,
+			error:          errWeatherService,
 			mockData:       nil,
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "Failed to fetch weather data",
+		},
+		{
+			name:           "Location not found",
+			location:       "city not found",
+			error:          errLocationNotFound,
+			mockData:       nil,
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   "location not found",
 		},
 	}
 
@@ -83,8 +104,8 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 			// Create handler with mock service
 			handler := &WeatherHandler{
 				WeatherService: &mockWeatherService{
-					shouldError: tt.shouldError,
-					mockData:    tt.mockData,
+					error:    tt.error,
+					mockData: tt.mockData,
 				},
 			}
 
@@ -155,7 +176,7 @@ func TestWeatherHandler_HandleWeather(t *testing.T) {
 func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 	handler := &WeatherHandler{
 		WeatherService: &mockWeatherService{
-			shouldError: false,
+			error: nil,
 			mockData: &model.WeatherResponse{
 				Location:    "London",
 				Temperature: 15.2,
@@ -190,12 +211,16 @@ func TestWeatherHandler_HandleWeather_EdgeCases(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
+
+	handler = &WeatherHandler{
+		WeatherService: service.NewWeatherService(),
+	}
 }
 
 func TestWeatherHandler_HandleWeather_NonGETMethod(t *testing.T) {
 	handler := &WeatherHandler{
 		WeatherService: &mockWeatherService{
-			shouldError: false,
+			error: nil,
 			mockData: &model.WeatherResponse{
 				Location:    "London",
 				Temperature: 15.2,

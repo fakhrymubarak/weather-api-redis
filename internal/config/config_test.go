@@ -91,7 +91,7 @@ func TestGetProjectRoot_MissingGoMod(t *testing.T) {
 
 func TestGetRateLimiterCleanupTimeout(t *testing.T) {
 	ReloadConfigForTest()
-	want := time.Second // from config_test.yaml
+	want := 100 * time.Millisecond // from config_test.yaml
 	got := GetRateLimiterCleanupTimeout()
 	if got != want {
 		t.Errorf("Expected cleanup timeout %v, got %v", want, got)

@@ -2,14 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
-
 	"github.com/fakhrymubarak/weather-api-redis/internal/model"
 	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
-)
-
-var (
-	ErrWeatherService = errors.New("weather service error")
 )
 
 // WeatherServiceInterface defines the interface for weather service operations

@@ -104,6 +104,15 @@ func TestNewWeatherService_NilRepo(t *testing.T) {
 	}
 }
 
+func TestNewWeatherService_ArrRepo(t *testing.T) {
+	repo1 := repository.NewWeatherRepository()
+	repo2 := repository.NewWeatherRepository()
+	service := NewWeatherService(repo1, repo2)
+	if service == nil {
+		t.Error("Expected service to be created with nil repo")
+	}
+}
+
 func TestWeatherService_GetWeather_EmptyLocation(t *testing.T) {
 	mockRepo := &mockWeatherRepository{shouldError: false, mockData: &model.WeatherResponse{Location: "", Temperature: 0, Description: "", Cached: false}}
 	service := &WeatherService{WeatherRepo: mockRepo}

@@ -5,7 +5,7 @@ server:
   port: "18080"
 
 rate_limiter:
-  cleanup_timeout: 1s
+  cleanup_timeout: 100ms
   global:
     rate: 10
     burst: 10
