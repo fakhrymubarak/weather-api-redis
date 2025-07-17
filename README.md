@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/fakhrymubarak/weather-api-redis/branch/master/graph/badge.svg)](https://codecov.io/gh/fakhrymubarak/weather-api-redis)
+
 # Weather API
 
 This is a challenge project from [Roadmap.sh](https://roadmap.sh/projects/weather-api-wrapper-service).
