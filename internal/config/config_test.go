@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/spf13/viper"
 	"os"
 	"testing"
 	"time"
@@ -95,6 +96,23 @@ func TestGetRateLimiterCleanupTimeout(t *testing.T) {
 	if got != want {
 		t.Errorf("Expected cleanup timeout %v, got %v", want, got)
 	}
+
+	// Test with config string error
+	viper.Set("rate_limiter.cleanup_timeout", "9aslkdfjas")
+	want = 3 * time.Minute
+	got = GetRateLimiterCleanupTimeout()
+	if got != want {
+		t.Errorf("Expected cleanup timeout %v, got %v", want, got)
+	}
+
+	// Test without a config
+	viper.Reset()
+	want = 3 * time.Minute
+	got = GetRateLimiterCleanupTimeout()
+	if got != want {
+		t.Errorf("Expected cleanup timeout %v, got %v", want, got)
+	}
+
 }
 
 func TestGetGlobalRateLimiterConfig(t *testing.T) {
@@ -146,6 +164,15 @@ func TestGetGlobalRateLimiterConfig_Default(t *testing.T) {
 	if burst != wantBurst {
 		t.Errorf("Expected default global burst %v, got %v", wantBurst, burst)
 	}
+
+	viper.Reset()
+	rate, burst = GetGlobalRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected default global rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected default global burst %v, got %v", wantBurst, burst)
+	}
 }
 
 func TestGetParamRateLimiterConfig_Default(t *testing.T) {
@@ -155,6 +182,15 @@ func TestGetParamRateLimiterConfig_Default(t *testing.T) {
 	wantRate := 2.0
 	wantBurst := 2
 	rate, burst := GetParamRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected default param rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected default param burst %v, got %v", wantBurst, burst)
+	}
+
+	viper.Reset()
+	rate, burst = GetParamRateLimiterConfig()
 	if rate != wantRate {
 		t.Errorf("Expected default param rate %v, got %v", wantRate, rate)
 	}

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	viper "github.com/spf13/viper"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
