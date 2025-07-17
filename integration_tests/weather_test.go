@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -67,6 +68,58 @@ func TestWeatherAPITestSuite(t *testing.T) {
 	suite.Run(t, new(WeatherAPITestSuite))
 }
 
+var ProvidedCities = []string{
+	"Jakarta", "Surabaya", "Bandung", "Medan", "Semarang",
+	"Makassar", "Palembang", "Denpasar", "Yogyakarta", "Balikpapan",
+	"Malang", "Batam", "Pekanbaru", "Pontianak", "Manado",
+	"Padang", "Bengkulu", "Kupang", "Mataram", "Jayapura",
+}
+
+func (suite *WeatherAPITestSuite) TestWeatherEndpointLimiter() {
+	var resp *http.Response
+	var err error
+	suite.Run("Failed - Rate limit exceeded per unique params", func() {
+		ResetRateLimiterForIntegration()
+		for i := 0; i <= 5; i++ {
+			req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=Makassar", nil)
+			resp, err = suite.httpServer.Client().Do(req)
+			assert.NoError(suite.T(), err)
+
+			if i < 2 {
+				assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+			} else {
+				assert.Equal(suite.T(), http.StatusTooManyRequests, resp.StatusCode)
+			}
+		}
+		defer resp.Body.Close()
+	})
+
+	suite.Run("Failed - Rate limit exceeded per global request", func() {
+		ResetRateLimiterForIntegration()
+		t := suite.T()
+		for i := 0; i <= 14; i++ {
+
+			city := ProvidedCities[i]
+			req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location="+city, nil)
+			resp, err = suite.httpServer.Client().Do(req)
+			assert.NoError(t, err)
+
+			var response model.Response
+			err := json.NewDecoder(resp.Body).Decode(&response)
+			assert.NoError(t, err)
+
+			if i < 10 {
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+				assert.Equal(t, "Success", response.Message)
+			} else {
+				assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+				assert.Equal(t, "Too Many Requests (global limit)", response.Message)
+			}
+		}
+		defer resp.Body.Close()
+	})
+}
+
 func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 	tests := []struct {
 		name          string
@@ -117,14 +170,14 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				// Clear any cached data for this test
 				client := redis.GetClient()
 				ctx := redis.GetContext()
-				client.Del(ctx, "weather:London")
+				client.Del(ctx, "weather:Makassar")
 
 				// Set an invalid API key for this test
 				os.Setenv("OPENWEATHERMAP_API_KEY", "invalid_key")
 				config.ReloadConfigForTest()
 			},
 			setupRequest: func() *http.Request {
-				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=London", nil)
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=Makassar", nil)
 				return req
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -186,22 +239,22 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				// Clear cache before setting up cached data
 				client := redis.GetClient()
 				ctx := redis.GetContext()
-				client.Del(ctx, "weather:London")
+				client.Del(ctx, "weather:Makassar")
 
 				// Setup Redis with cached data
 				cachedWeather := &model.WeatherResponse{
-					Location:    "London",
+					Location:    "Makassar",
 					Temperature: 15.2,
 					Description: "clear sky",
 					Cached:      true,
 				}
 
 				data, _ := json.Marshal(cachedWeather)
-				client.Set(ctx, "weather:London", data, time.Minute)
+				client.Set(ctx, "weather:Makassar", data, time.Minute)
 				time.Sleep(50 * time.Millisecond)
 			},
 			setupRequest: func() *http.Request {
-				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=London", nil)
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=Makassar", nil)
 				return req
 			},
 			wantStatus: http.StatusOK,
@@ -217,7 +270,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				err = json.Unmarshal(dataBytes, &weatherData)
 				assert.NoError(t, err)
 
-				assert.Equal(t, "London", weatherData.Location)
+				assert.Equal(t, "Makassar", weatherData.Location)
 				assert.True(t, weatherData.Cached)
 			},
 		},
@@ -227,10 +280,10 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				// Clear cache before running a not-cached test
 				client := redis.GetClient()
 				ctx := redis.GetContext()
-				client.Del(ctx, "weather:London")
+				client.Del(ctx, "weather:Makassar")
 			},
 			setupRequest: func() *http.Request {
-				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=London", nil)
+				req, _ := http.NewRequest(http.MethodGet, suite.httpServer.URL+"/weather?location=Makassar", nil)
 				return req
 			},
 			wantStatus: http.StatusOK,
@@ -246,7 +299,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 				err = json.Unmarshal(dataBytes, &weatherData)
 				assert.NoError(t, err)
 
-				assert.Equal(t, "London", weatherData.Location)
+				assert.Equal(t, "Makassar", weatherData.Location)
 				assert.False(t, weatherData.Cached)
 			},
 		},
@@ -254,6 +307,7 @@ func (suite *WeatherAPITestSuite) TestWeatherEndpoint() {
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
+			ResetRateLimiterForIntegration()
 			tt.setupMockTest()
 
 			req := tt.setupRequest()
@@ -280,19 +334,19 @@ func mockOWMApi() *httptest.Server {
 			_, _ = w.Write([]byte(`{"cod":401,"message":"Invalid API key"}`))
 			return
 		}
-		if q == "London" {
+
+		if slices.Contains(ProvidedCities, q) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			data, err := os.ReadFile("integration_tests/openweathermap_mock_london.json")
-			if err != nil {
-				_, _ = w.Write([]byte(`{"name": "London", "main": {"temp": 15.2}, "weather": [{"description": "clear sky"}]}`))
-				return
+			resp := map[string]interface{}{
+				"name":    q,
+				"main":    map[string]interface{}{"temp": 15.2},
+				"weather": []map[string]interface{}{{"description": "clear sky"}},
 			}
-			_, _ = w.Write(data)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"cod": "404", "message": "city not found"}`))
 	}))
-
 }

@@ -13,6 +13,7 @@ A simple Weather API service that fetches weather data from external providers a
 - Cache weather responses in Redis to reduce API calls
 - Configurable cache expiration
 - Simple RESTful API interface
+- **Rate limiting:** Each IP is limited to 5 requests per minute (burst up to 2). Exceeding this returns a 429 Too Many Requests error.
 
 ## Tech Stack
 - Go (Golang)
@@ -113,6 +114,20 @@ Content-Type: application/json
 {
   "error": "Method not allowed",
   "message": "Error"
+}
+```
+
+**Example Error Response: Rate Limiting**
+
+If a client exceeds the allowed rate, the API responds with:
+
+```
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+{
+  "message": "Too Many Requests",
+  "error": "rate limit exceeded"
 }
 ```
 

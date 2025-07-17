@@ -8,6 +8,7 @@ import (
 
 	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 	"github.com/fakhrymubarak/weather-api-redis/internal/handler"
+	"github.com/fakhrymubarak/weather-api-redis/internal/middleware"
 	"github.com/fakhrymubarak/weather-api-redis/internal/repository"
 	"github.com/fakhrymubarak/weather-api-redis/internal/service"
 
@@ -51,9 +52,10 @@ func setupIntegrationTestServer() *httptest.Server {
 
 	weatherRepo := repository.NewWeatherRepository(mockClient)
 	weatherService := service.NewWeatherService(weatherRepo)
+	weatherHandler := handler.NewWeatherHandler(weatherService)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/weather", handler.NewWeatherHandler(weatherService).HandleWeather)
+	mux.Handle("/weather", middleware.RateLimitMiddleware(http.HandlerFunc(weatherHandler.HandleWeather)))
 
 	srv := &http.Server{
 		Addr:              config.GetTestServerPort(),
@@ -85,4 +87,9 @@ func parseDurationOrDefault(s string, def time.Duration) time.Duration {
 		return def
 	}
 	return d
+}
+
+// ResetRateLimiterForIntegration Add a helper to reset the rate limiter before integration tests
+func ResetRateLimiterForIntegration() {
+	middleware.ResetVisitors()
 }
