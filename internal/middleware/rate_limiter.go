@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 	"github.com/fakhrymubarak/weather-api-redis/internal/model"
 	"golang.org/x/time/rate"
 )
@@ -42,13 +43,14 @@ var (
 )
 
 // getGlobalLimiter returns the rate limiter for the given IP address, creating one if it does not exist.
-// The global limiter allows 10 requests per minute with a burst of 10.
+// The global limiter allows a configurable number of requests per minute with a configurable burst.
 func getGlobalLimiter(ip string) *rate.Limiter {
 	muGlobal.Lock()
 	defer muGlobal.Unlock()
 	v, exists := globalVisitors[ip]
 	if !exists {
-		limiter := rate.NewLimiter(10.0/60.0, 10)
+		r, burst := config.GetGlobalRateLimiterConfig()
+		limiter := rate.NewLimiter(rate.Limit(r/60.0), burst)
 		globalVisitors[ip] = &visitor{limiter, time.Now()}
 		return limiter
 	}
@@ -57,7 +59,7 @@ func getGlobalLimiter(ip string) *rate.Limiter {
 }
 
 // getParamLimiter returns the rate limiter for the given IP address and parameter value, creating one if it does not exist.
-// The per-param limiter allows 2 requests per minute with a burst of 2.
+// The per-param limiter allows a configurable number of requests per minute with a configurable burst.
 func getParamLimiter(ip, param string) *rate.Limiter {
 	muParam.Lock()
 	defer muParam.Unlock()
@@ -66,7 +68,8 @@ func getParamLimiter(ip, param string) *rate.Limiter {
 	}
 	v, exists := paramVisitors[ip][param]
 	if !exists {
-		limiter := rate.NewLimiter(2.0/60.0, 2)
+		r, burst := config.GetParamRateLimiterConfig()
+		limiter := rate.NewLimiter(rate.Limit(r/60.0), burst)
 		paramVisitors[ip][param] = &paramVisitor{limiter, time.Now()}
 		return limiter
 	}
@@ -74,13 +77,14 @@ func getParamLimiter(ip, param string) *rate.Limiter {
 	return v.limiter
 }
 
-// cleanupGlobalVisitors periodically removes globalVisitors entries that have not been seen for over 3 minutes.
+// cleanupGlobalVisitors periodically removes globalVisitors entries that have not been seen for over the configured cleanup timeout.
 func cleanupGlobalVisitors() {
 	for {
 		time.Sleep(time.Minute)
+		timeout := config.GetRateLimiterCleanupTimeout()
 		muGlobal.Lock()
 		for ip, v := range globalVisitors {
-			if time.Since(v.lastSeen) > 3*time.Minute {
+			if time.Since(v.lastSeen) > timeout {
 				delete(globalVisitors, ip)
 			}
 		}
@@ -88,14 +92,15 @@ func cleanupGlobalVisitors() {
 	}
 }
 
-// cleanupParamVisitors periodically removes paramVisitors entries that have not been seen for over 3 minutes.
+// cleanupParamVisitors periodically removes paramVisitors entries that have not been seen for over the configured cleanup timeout.
 func cleanupParamVisitors() {
 	for {
 		time.Sleep(time.Minute)
+		timeout := config.GetRateLimiterCleanupTimeout()
 		muParam.Lock()
 		for ip, paramMap := range paramVisitors {
 			for param, v := range paramMap {
-				if time.Since(v.lastSeen) > 3*time.Minute {
+				if time.Since(v.lastSeen) > timeout {
 					delete(paramMap, param)
 				}
 			}

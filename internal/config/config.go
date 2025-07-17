@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -103,4 +104,47 @@ func GetLogger() *zap.SugaredLogger {
 		logger = l.Sugar()
 	})
 	return logger
+}
+
+// GetRateLimiterCleanupTimeout returns the rate limiter cleanup timeout as a time.Duration.
+// Defaults to 3m if not set or invalid.
+func GetRateLimiterCleanupTimeout() time.Duration {
+	initConfig()
+	durStr := viper.GetString("rate_limiter.cleanup_timeout")
+	if durStr == "" {
+		durStr = "3m"
+	}
+	dur, err := time.ParseDuration(durStr)
+	if err != nil {
+		return 3 * time.Minute
+	}
+	return dur
+}
+
+// GetGlobalRateLimiterConfig returns the rate and burst for the global rate limiter from config.
+func GetGlobalRateLimiterConfig() (rate float64, burst int) {
+	initConfig()
+	rate = viper.GetFloat64("rate_limiter.global.rate")
+	if rate == 0 {
+		rate = 10
+	}
+	burst = viper.GetInt("rate_limiter.global.burst")
+	if burst == 0 {
+		burst = 10
+	}
+	return
+}
+
+// GetParamRateLimiterConfig returns the rate and burst for the param rate limiter from config.
+func GetParamRateLimiterConfig() (rate float64, burst int) {
+	initConfig()
+	rate = viper.GetFloat64("rate_limiter.param.rate")
+	if rate == 0 {
+		rate = 2
+	}
+	burst = viper.GetInt("rate_limiter.param.burst")
+	if burst == 0 {
+		burst = 2
+	}
+	return
 }

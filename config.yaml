@@ -16,4 +16,13 @@ cache:
 
 test:
   redis_mock_port: ":16379"
-  server_port: ":8080" 
+  server_port: ":8080"
+
+rate_limiter:
+  cleanup_timeout: 3m
+  global:
+    rate: 10
+    burst: 10
+  param:
+    rate: 2
+    burst: 2 
