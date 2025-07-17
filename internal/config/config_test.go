@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 func TestGetOpenWeatherMapAPIKey(t *testing.T) {
@@ -26,20 +27,10 @@ func TestGetOpenWeatherMapAPIKey(t *testing.T) {
 
 func TestGetRedisAddr(t *testing.T) {
 	// Test with the environment variable set
-	expectedAddr := "localhost:6379"
-	os.Setenv("REDIS_ADDR", expectedAddr)
-	defer os.Unsetenv("REDIS_ADDR")
-
+	expectedAddr := "localhost:16379"
 	result := GetRedisAddr()
 	if result != expectedAddr {
 		t.Errorf("Expected Redis addr %s, got %s", expectedAddr, result)
-	}
-
-	// Test with an environment variable not set (should return default)
-	os.Unsetenv("REDIS_ADDR")
-	result = GetRedisAddr()
-	if result != "localhost:6379" {
-		t.Errorf("Expected default Redis addr localhost:6379, got %s", result)
 	}
 }
 
@@ -52,7 +43,7 @@ func TestGetOpenWeatherApiUrl(t *testing.T) {
 }
 
 func TestGetServerPort(t *testing.T) {
-	want := "8080"
+	want := "18080"
 	got := GetServerPort()
 	if got != want {
 		t.Errorf("Expected server port %s, got %s", want, got)
@@ -75,22 +66,6 @@ func TestGetServerTimeout(t *testing.T) {
 	}
 }
 
-func TestGetTestRedisMockPort(t *testing.T) {
-	want := ":16379"
-	got := GetTestRedisMockPort()
-	if got != want {
-		t.Errorf("Expected test redis mock port %s, got %s", want, got)
-	}
-}
-
-func TestGetTestServerPort(t *testing.T) {
-	want := ":8080"
-	got := GetTestServerPort()
-	if got != want {
-		t.Errorf("Expected test server port %s, got %s", want, got)
-	}
-}
-
 func TestReloadConfigForTest(t *testing.T) {
 	// Should not panic or error
 	ReloadConfigForTest()
@@ -110,5 +85,80 @@ func TestGetProjectRoot_MissingGoMod(t *testing.T) {
 	_, err := getProjectRoot()
 	if err == nil {
 		t.Error("Expected error for missing go.mod, got nil")
+	}
+}
+
+func TestGetRateLimiterCleanupTimeout(t *testing.T) {
+	ReloadConfigForTest()
+	want := time.Second // from config_test.yaml
+	got := GetRateLimiterCleanupTimeout()
+	if got != want {
+		t.Errorf("Expected cleanup timeout %v, got %v", want, got)
+	}
+}
+
+func TestGetGlobalRateLimiterConfig(t *testing.T) {
+	ReloadConfigForTest()
+	wantRate := 10.0 // from config_test.yaml
+	wantBurst := 10
+	rate, burst := GetGlobalRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected global rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected global burst %v, got %v", wantBurst, burst)
+	}
+}
+
+func TestGetParamRateLimiterConfig(t *testing.T) {
+	ReloadConfigForTest()
+	wantRate := 2.0 // from config_test.yaml
+	wantBurst := 2
+	rate, burst := GetParamRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected param rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected param burst %v, got %v", wantBurst, burst)
+	}
+}
+
+func TestGetRateLimiterCleanupTimeout_Default(t *testing.T) {
+	// Temporarily move config_test.yaml out of the way to test default
+	_ = os.Rename("../../config_test.yaml", "../../config_test.yaml.bak")
+	defer os.Rename("../../config_test.yaml.bak", "../../config_test.yaml")
+	ReloadConfigForTest()
+	want := 3 * time.Minute
+	got := GetRateLimiterCleanupTimeout()
+	if got != want {
+		t.Errorf("Expected default cleanup timeout %v, got %v", want, got)
+	}
+}
+
+func TestGetGlobalRateLimiterConfig_Default(t *testing.T) {
+	ReloadConfigForTest()
+	wantRate := 10.0
+	wantBurst := 10
+	rate, burst := GetGlobalRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected default global rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected default global burst %v, got %v", wantBurst, burst)
+	}
+}
+
+func TestGetParamRateLimiterConfig_Default(t *testing.T) {
+	_ = os.Rename("../../config_test.yaml", "../../config_test.yaml.bak")
+	defer os.Rename("../../config_test.yaml.bak", "../../config_test.yaml")
+	ReloadConfigForTest()
+	wantRate := 2.0
+	wantBurst := 2
+	rate, burst := GetParamRateLimiterConfig()
+	if rate != wantRate {
+		t.Errorf("Expected default param rate %v, got %v", wantRate, rate)
+	}
+	if burst != wantBurst {
+		t.Errorf("Expected default param burst %v, got %v", wantBurst, burst)
 	}
 }

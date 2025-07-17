@@ -14,10 +14,6 @@ server:
 cache:
   expiration: 10m
 
-test:
-  redis_mock_port: ":16379"
-  server_port: ":8080"
-
 rate_limiter:
   cleanup_timeout: 3m
   global:

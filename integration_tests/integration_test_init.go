@@ -32,7 +32,7 @@ type MockResponse struct {
 
 func createMockRedisServer() {
 	miniRedisMock = miniredis.NewMiniRedis()
-	err := miniRedisMock.StartAddr(config.GetTestRedisMockPort())
+	err := miniRedisMock.StartAddr(config.GetRedisAddr())
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +58,7 @@ func setupIntegrationTestServer() *httptest.Server {
 	mux.Handle("/weather", middleware.RateLimitMiddleware(http.HandlerFunc(weatherHandler.HandleWeather)))
 
 	srv := &http.Server{
-		Addr:              config.GetTestServerPort(),
+		Addr:              config.GetServerPort(),
 		Handler:           mux,
 		ReadHeaderTimeout: parseDurationOrDefault(config.GetServerTimeout("read_header_timeout"), 15*time.Second),
 		ReadTimeout:       parseDurationOrDefault(config.GetServerTimeout("read_timeout"), 15*time.Second),

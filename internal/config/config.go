@@ -1,13 +1,14 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -15,18 +16,33 @@ var once sync.Once
 var logger *zap.SugaredLogger
 var loggerOnce sync.Once
 
+// isTestRun returns true if the current process is a Go test binary.
+func isTestRun() bool {
+	return flag.Lookup("test.v") != nil || filepath.Ext(os.Args[0]) == ".test"
+}
+
 func initConfig() {
 	once.Do(func() {
 		root, err := getProjectRoot()
 		if err != nil {
-			GetLogger().Fatalw("Erciror finding project root", "error", err)
+			GetLogger().Errorw("Error finding project root", "error", err)
 		}
-		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
+
+		viper.SetConfigName("config")
 		viper.AddConfigPath(root)
-		err = viper.ReadInConfig()
+		if err = viper.ReadInConfig(); err != nil {
+			GetLogger().Errorw("Error reading config file: %v", err)
+		}
+
+		if isTestRun() {
+			viper.SetConfigName("config_test")
+			viper.AddConfigPath(root)
+		}
+
+		err = viper.MergeInConfig()
 		if err != nil {
-			GetLogger().Fatalw("Error reading config file", "error", err)
+			GetLogger().Errorw("Error reading config file", "error", err)
 		}
 	})
 }
@@ -66,7 +82,8 @@ func GetRedisAddr() string {
 
 func GetServerPort() string {
 	initConfig()
-	return viper.GetString("server.port")
+	serverPort := viper.GetString("server.port")
+	return serverPort
 }
 
 func GetCacheExpiration() string {
@@ -77,16 +94,6 @@ func GetCacheExpiration() string {
 func GetServerTimeout(key string) string {
 	initConfig()
 	return viper.GetString("server." + key)
-}
-
-func GetTestRedisMockPort() string {
-	initConfig()
-	return viper.GetString("test.redis_mock_port")
-}
-
-func GetTestServerPort() string {
-	initConfig()
-	return viper.GetString("test.server_port")
 }
 
 // ReloadConfigForTest resets the config singleton and reloads Viper config. Use only in tests.

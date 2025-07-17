@@ -1,0 +1,14 @@
+redis:
+  addr: "localhost:16379"
+
+server:
+  port: "18080"
+
+rate_limiter:
+  cleanup_timeout: 1s
+  global:
+    rate: 10
+    burst: 10
+  param:
+    rate: 2
+    burst: 2

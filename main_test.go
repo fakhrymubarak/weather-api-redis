@@ -38,8 +38,8 @@ func TestServerStartup(t *testing.T) {
 func TestEnvironmentVariables(t *testing.T) {
 	// Test default port behavior
 	port := config.GetServerPort()
-	if port != "8080" {
-		t.Errorf("Expected default port 8080, got %s", port)
+	if port != "18080" {
+		t.Errorf("Expected default port 18080, got %s", port)
 	}
 }
 
