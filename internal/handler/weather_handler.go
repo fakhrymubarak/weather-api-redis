@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"github.com/fakhrymubarak/weather-api-redis/internal/config"
 	"net/http"
 
 	"github.com/fakhrymubarak/weather-api-redis/internal/model"
@@ -30,7 +30,7 @@ func (h *WeatherHandler) writeJSONResponse(w http.ResponseWriter, statusCode int
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("could not encode json: %v", err)
+		config.GetLogger().Errorw("could not encode json:", err)
 	}
 }
 

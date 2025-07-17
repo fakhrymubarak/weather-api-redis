@@ -70,7 +70,7 @@ func (r *weatherRepository) GetWeather(ctx context.Context, location string) (*m
 	// If not in cache, fetch from external API
 	weather, err := r.fetchFromExternalAPI(location)
 	if err != nil {
-		config.GetLogger().Errorw("External API error", "location", location, "error", err)
+		config.GetLogger().Warnw("External API error", "location", location, "error", err)
 		return nil, err
 	}
 	config.GetLogger().Debugw("Fetched from API", "location", location)
