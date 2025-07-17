@@ -20,6 +20,7 @@ var (
 )
 
 func runTestServer() *httptest.Server {
+	middleware.StartRateLimiterCleanup()
 	return setupIntegrationTestServer()
 }
 
@@ -39,7 +40,6 @@ func createMockRedisServer() {
 }
 
 func setupIntegrationTestServer() *httptest.Server {
-
 	// Create a custom http.Client that points to the mock server
 	mockClient := &http.Client{
 		Transport: &http.Transport{
@@ -69,7 +69,7 @@ func setupIntegrationTestServer() *httptest.Server {
 	// Create a channel to communicate server startup
 	serverErr := make(chan error, 1)
 
-	// Start server in a goroutine
+	// Start a server in a goroutine
 	go func() {
 		config.GetLogger().Infow("Starting Lookup Server", "port", "8080")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
