@@ -23,15 +23,13 @@ func isTestRun() bool {
 
 func initConfig() {
 	once.Do(func() {
-		root, err := getProjectRoot()
-		if err != nil {
-			GetLogger().Errorw("Error finding project root", "error", err)
-		}
-		viper.SetConfigType("yaml")
+		root := getProjectRoot()
+		GetLogger().Infow("Loading config from", "path", root)
 
+		viper.SetConfigType("yaml")
 		viper.SetConfigName("config")
 		viper.AddConfigPath(root)
-		if err = viper.ReadInConfig(); err != nil {
+		if err := viper.ReadInConfig(); err != nil {
 			GetLogger().Errorw("Error reading config file: %v", err)
 		}
 
@@ -40,29 +38,30 @@ func initConfig() {
 			viper.AddConfigPath(root)
 		}
 
-		err = viper.MergeInConfig()
+		err := viper.MergeInConfig()
 		if err != nil {
 			GetLogger().Errorw("Error reading config file", "error", err)
 		}
 	})
 }
 
-func getProjectRoot() (string, error) {
+func getProjectRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return "."
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
+			return dir
 		}
+		GetLogger().Debugf("Failed finding go.mod in root project")
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
 		dir = parent
 	}
-	return "", os.ErrNotExist
+	return "."
 }
 
 func GetOpenWeatherApiUrl() string {
@@ -76,6 +75,10 @@ func GetOpenWeatherMapAPIKey() string {
 }
 
 func GetRedisAddr() string {
+	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
+		return addr
+	}
+
 	initConfig()
 	return viper.GetString("redis.addr")
 }

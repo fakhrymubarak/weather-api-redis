@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
@@ -83,10 +84,8 @@ func TestInitConfig_MissingConfigFile(t *testing.T) {
 func TestGetProjectRoot_MissingGoMod(t *testing.T) {
 	_ = os.Rename("../../go.mod", "../../go.mod.bak")
 	defer os.Rename("../../go.mod.bak", "../../go.mod")
-	_, err := getProjectRoot()
-	if err == nil {
-		t.Error("Expected error for missing go.mod, got nil")
-	}
+	dir := getProjectRoot()
+	assert.Equal(t, dir, ".", "Expected project root to be current directory")
 }
 
 func TestGetRateLimiterCleanupTimeout(t *testing.T) {

@@ -24,34 +24,49 @@ A simple Weather API service that fetches weather data from external providers a
 - (Optional) External Weather API (e.g., OpenWeatherMap, WeatherAPI)
 
 ## Setup
-1. **Clone the repository:**
-   ```sh
-   git clone <repo-url>
-   cd weather-api-redis
-   ```
-2. **Install dependencies:**
-   ```sh
-   # If using Go modules
-   go mod tidy
-   ```
-3. **Set up environment variables:**
-   Create a `.env` file in the root directory with your OpenWeatherMap API key:
-   ```
-   OPENWEATHERMAP_API_KEY={YOUR_API_KEY}
-   ```
-   > **Note:** Replace `{YOUR_API_KEY}` with your actual OpenWeatherMap API key. You can get a free API key from [OpenWeatherMap](https://openweathermap.org/api).
 
-4. **Run Redis (required for caching):**
-   ```sh
-   docker run --name weather-redis -p 6379:6379 -d redis
-   ```
-   > **Note:** Redis is required for the caching feature to work. The API will still function without Redis, but caching will be disabled.
+### 1. Clone the repository
+```sh
+git clone <repo-url>
+cd weather-api-redis
+```
 
-5. **Run the API server:**
-   ```sh
-   go run main.go
-   ```
-   The server will start on port 8080 by default. You can set the `PORT` environment variable to change the port.
+### 2. Create a `.env` file
+Create a `.env` file in the root directory with your OpenWeatherMap API key:
+```
+OPENWEATHERMAP_API_KEY={YOUR_API_KEY}
+```
+> **Note:** Replace `{YOUR_API_KEY}` with your actual OpenWeatherMap API key. You can get a free API key from [OpenWeatherMap](https://openweathermap.org/api).
+
+### 3. Run with Docker Compose (Recommended)
+This will build the Go app, start the API, and launch Redis automatically:
+```sh
+docker-compose up --build
+```
+- The API will be available at [http://localhost:8080](http://localhost:8080)
+- Redis will be available at `localhost:6379` (for local tools)
+
+> **Note:** The API connects to Redis at `redis:6379` inside the Docker network. No manual Redis setup is needed.
+
+### 4. (Alternative) Run Locally Without Docker
+If you prefer to run everything manually:
+
+#### a. Install dependencies
+```sh
+# If using Go modules
+go mod tidy
+```
+
+#### b. Start Redis manually (if not using Docker Compose)
+```sh
+docker run --name weather-redis -p 6379:6379 -d redis
+```
+
+#### c. Run the API server
+```sh
+go run main.go
+```
+The server will start on port 8080 by default. You can set the `PORT` environment variable to change the port.
 
 > **Note:** Redis caching is now implemented. The codebase is structured to allow easy integration of Redis in the future.
 
